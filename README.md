@@ -85,6 +85,19 @@ for r in game.rounds:
     print(f"局={r.round_number} 本場={r.honba} 結果={type(r.result).__name__}")
 ```
 
+### BigQueryへのロード
+
+```bash
+# 全ファイルをロード（重複は自動スキップ）
+uv run tenhou-load data/
+
+# パースのみ（BigQueryにはロードしない）
+uv run tenhou-load data/ --dry-run
+
+# 個別ファイル指定も可
+uv run tenhou-load data/2026080814gm-0089-0000-fee5c4f5\&tw=0.mjlog
+```
+
 ### テスト
 
 ```bash
@@ -100,7 +113,7 @@ uv run pytest -v
 ## 開発状況
 
 - [x] mjlogパーサー実装
-- [ ] BigQueryローダー実装
+- [x] BigQueryローダー実装
 - [ ] dbtプロジェクトセットアップ
 - [ ] staging/intermediate/martsモデル作成
 - [ ] Streamlit可視化

@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "天鳳の対局ログを解析し、BigQueryで麻雀成績を分析するツール"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "google-cloud-bigquery>=3.43.0",
+]
+
+[project.scripts]
+tenhou-load = "tenhou_analytics.cli:main"
 
 [build-system]
 requires = ["hatchling"]

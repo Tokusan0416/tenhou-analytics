@@ -32,11 +32,24 @@ tests/                         # テスト
 - プレイヤー0-3に対応: ツモ=T/U/V/W、打牌=D/E/F/G
 - 主要要素: GO(ゲーム種別), UN(プレイヤー情報), INIT(局初期状態), N(鳴き), AGARI(和了), RYUUKYOKU(流局)
 
-## BigQuery rawテーブル設計
+## GCPプロジェクト
 
-- `raw_games`: 対局メタ情報（日時、プレイヤー、ルール）
-- `raw_rounds`: 局ごとの情報（局、本場、配牌、ドラ、結果）
-- `raw_actions`: 巡目ごとのアクション（ツモ/打牌/鳴き）
+- プロジェクトID: `invertible-vine-477701-j8`（名前: tokusan-private-lab）
+- リージョン: asia-northeast1
+
+## BigQueryデータセット・テーブル設計
+
+- `tenhou_raw`: Pythonローダーが書き込むrawデータ
+  - `raw_games`: 対局メタ情報（プレイヤー、ルール、最終スコア）
+  - `raw_rounds`: 局ごとの情報（局、本場、配牌、ドラ、和了/流局結果）
+  - `raw_actions`: 巡目ごとのアクション（ツモ/打牌/鳴き）
+- `tenhou_staging`: dbt staging層
+- `tenhou_marts`: dbt分析用テーブル
+
+## CLI
+
+- `tenhou-load data/` — mjlogファイルをパースしBigQueryにロード（重複自動スキップ）
+- `tenhou-load data/ --dry-run` — パースのみ実行
 
 ## パーサーの主要データモデル
 
@@ -62,6 +75,6 @@ tests/                         # テスト
 ## 現在の開発状況
 
 - [x] mjlogパーサー（constants.py, mjlog.py）
-- [ ] BigQueryローダー
+- [x] BigQueryローダー（bq_loader.py, cli.py）
 - [ ] dbtプロジェクト
 - [ ] Streamlit可視化
