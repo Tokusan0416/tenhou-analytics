@@ -91,5 +91,6 @@ tests/                         # テスト
 - [x] BigQueryローダー（bq_loader.py, cli.py）
 - [x] GCS連携（gcs_loader.py, tenhou-upload CLI）
 - [x] dbtプロジェクト（staging/intermediate/warehouse）
-- [ ] martsモデル（レポート・可視化用集計）
+- [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
 - [ ] Streamlit可視化
+- [ ] CI/CD構築

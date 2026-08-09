@@ -128,7 +128,7 @@ uv run pytest -v
 | staging | `tenhou_staging` | rawテーブルの1:1変換 |
 | intermediate | `tenhou_staging` | 副露/リーチ順序/アガリ巡目の導出 |
 | warehouse | `tenhou_warehouse` | DIM/FACTテーブル |
-| marts | `tenhou_marts` | レポート・可視化用（将来） |
+| marts | `tenhou_marts` | レポート・可視化用の集計テーブル |
 
 ### warehouseのテーブル
 
@@ -137,6 +137,12 @@ uv run pytest -v
 - `fct_games`: 対局 × プレイヤーのファクト（順位・ポイント）
 - `fct_rounds`: 局ファクト
 - `fct_round_player_stats`: プレイヤー × 局のファクト（全スタッツの算出基盤）
+
+### martsのテーブル
+
+- `mart_player_stats`: プレイヤー別スタッツ集計（平均順位、アガリ率、放銃率、副露率、リーチ率等）
+- `mart_game_results`: 対局結果一覧（順位推移・累積ポイント付き）
+- `mart_yaku_stats`: 役別アガリ回数集計
 
 ## コスト
 
@@ -151,5 +157,6 @@ uv run pytest -v
 - [x] GCS連携
 - [x] dbtプロジェクトセットアップ
 - [x] staging/intermediate/warehouse モデル作成
-- [ ] martsモデル作成（レポート・可視化用）
+- [x] martsモデル作成（スタッツ集計・対局結果・役別集計）
 - [ ] Streamlit可視化
+- [ ] CI/CD構築
