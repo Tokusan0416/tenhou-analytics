@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -11,13 +12,21 @@ from google.cloud import bigquery
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "invertible-vine-477701-j8")
 
-# カラーパレット
 COLOR_PRIMARY = "#1f77b4"
 COLOR_SECONDARY = "#ff7f0e"
 COLOR_POSITIVE = "#2ca02c"
 COLOR_NEGATIVE = "#d62728"
 COLOR_NEUTRAL = "#7f7f7f"
 
+ROUND_LABELS = {
+    0: "東1局", 1: "東2局", 2: "東3局", 3: "東4局",
+    4: "南1局", 5: "南2局", 6: "南3局", 7: "南4局",
+}
+
+
+# ==============================
+# データロード
+# ==============================
 
 @st.cache_resource
 def get_bq_client() -> bigquery.Client:
@@ -30,313 +39,274 @@ def query_df(sql: str):
     return client.query(sql).to_dataframe()
 
 
-def load_player_stats():
+def load_round_player_stats():
     return query_df("""
-        SELECT *
-        FROM `tenhou_marts.mart_player_stats`
-        WHERE is_me
+        SELECT rps.*, dr.round_label, dr.wind, dr.is_ouras
+        FROM `tenhou_warehouse.fct_round_player_stats` AS rps
+        INNER JOIN `tenhou_warehouse.dim_rounds` AS dr ON rps.round_number = dr.round_number
+        WHERE rps.is_me
+        ORDER BY rps.game_id, rps.round_index
     """)
 
 
-def load_all_player_stats():
-    """同卓者含む全プレイヤーのスタッツ（レーダーチャート比較用）。"""
+def load_all_round_player_stats():
     return query_df("""
-        SELECT *
-        FROM `tenhou_marts.mart_player_stats`
-        WHERE total_games >= 3
+        SELECT player_name, is_me, is_agari, agari_ten, is_houjuu, houjuu_ten,
+               is_reach, is_naki, score_change
+        FROM `tenhou_warehouse.fct_round_player_stats`
     """)
 
 
 def load_game_results():
     return query_df("""
-        SELECT *
-        FROM `tenhou_marts.mart_game_results`
-        ORDER BY game_id
+        SELECT * FROM `tenhou_marts.mart_game_results` ORDER BY game_id
     """)
 
 
-def load_yaku_stats():
+def load_yaku_detail():
     return query_df("""
-        SELECT *
-        FROM `tenhou_marts.mart_yaku_stats`
-        WHERE is_me
-        ORDER BY yaku_count DESC
-    """)
-
-
-def load_round_details():
-    """局単位の詳細データ（打点分布・ヒートマップ用）。"""
-    return query_df("""
-        SELECT
-            rps.game_id
-            ,rps.round_index
-            ,r.round_number
-            ,rps.is_agari
-            ,rps.agari_ten
-            ,rps.is_houjuu
-            ,rps.houjuu_ten
-            ,rps.score_change
-            ,rps.is_reach
-            ,rps.is_naki
+        SELECT rps.game_id, rps.round_index, rps.round_number,
+               rps.is_dealer, rps.rank_at_start, rps.is_naki, rps.agari_yaku
         FROM `tenhou_warehouse.fct_round_player_stats` AS rps
-        INNER JOIN `tenhou_warehouse.fct_rounds` AS r
-            ON rps.game_id = r.game_id AND rps.round_index = r.round_index
-        WHERE rps.is_me
-        ORDER BY rps.game_id, rps.round_index
+        WHERE rps.is_me AND rps.is_agari AND rps.agari_yaku IS NOT NULL
     """)
+
+
+# ==============================
+# スタッツ計算
+# ==============================
+
+def calc_stats(df: pd.DataFrame) -> dict | None:
+    if df.empty:
+        return None
+    return {
+        "total_rounds": len(df),
+        "avg_score_change": df["score_change"].mean(),
+        "agari_rate": df["is_agari"].mean() * 100,
+        "avg_agari_ten": df.loc[df["is_agari"], "agari_ten"].mean() if df["is_agari"].any() else 0,
+        "avg_naki_agari_ten": df.loc[df["is_naki"] & df["is_agari"], "agari_ten"].mean() if (df["is_naki"] & df["is_agari"]).any() else 0,
+        "avg_agari_turn": df.loc[df["is_agari"], "agari_turn"].mean() if df["is_agari"].any() else 0,
+        "houjuu_rate": df["is_houjuu"].mean() * 100,
+        "avg_houjuu_ten": df.loc[df["is_houjuu"], "houjuu_ten"].mean() if df["is_houjuu"].any() else 0,
+        "reach_rate": df["is_reach"].mean() * 100,
+        "first_reach_rate": df["is_first_reach"].mean() * 100,
+        "naki_rate": df["is_naki"].mean() * 100,
+        "avg_dora_count": df.loc[df["is_agari"], "dora_count"].fillna(0).mean() if df["is_agari"].any() else 0,
+        "avg_ryuukyoku_score_change": df.loc[df["result_type"] == "ryuukyoku", "score_change"].mean() if (df["result_type"] == "ryuukyoku").any() else 0,
+        "hi_tsumo_rate": df["is_hi_tsumo"].mean() * 100,
+        "avg_hi_tsumo_ten": df.loc[df["is_hi_tsumo"], "hi_tsumo_ten"].mean() if df["is_hi_tsumo"].any() else 0,
+    }
+
+
+def stats_to_row(label: str, stats: dict) -> dict:
+    """スタッツdictを表示用の1行dictに変換。"""
+    return {
+        "": label,
+        "局数": stats["total_rounds"],
+        "アガリ率": f"{stats['agari_rate']:.1f}%",
+        "アガリ打点": f"{int(stats['avg_agari_ten']):,}",
+        "放銃率": f"{stats['houjuu_rate']:.1f}%",
+        "放銃打点": f"{int(stats['avg_houjuu_ten']):,}",
+        "リーチ率": f"{stats['reach_rate']:.1f}%",
+        "副露率": f"{stats['naki_rate']:.1f}%",
+        "被ツモ率": f"{stats['hi_tsumo_rate']:.1f}%",
+        "局収支": f"{stats['avg_score_change']:+.1f}",
+    }
+
+
+def grouped_stats_table(df: pd.DataFrame, group_col: str, label_fn=None) -> pd.DataFrame:
+    """グループ別のスタッツ比較テーブルを作成。"""
+    rows = []
+    for val in sorted(df[group_col].unique()):
+        subset = df[df[group_col] == val]
+        s = calc_stats(subset)
+        if s:
+            label = label_fn(val) if label_fn else str(val)
+            rows.append(stats_to_row(label, s))
+    return pd.DataFrame(rows)
+
+
+def grouped_bar_chart(df: pd.DataFrame, group_col: str, metrics: list[str],
+                      label_fn=None, colors=None) -> go.Figure:
+    """グループ別の指標をバーチャートで比較。"""
+    fig = go.Figure()
+    groups = sorted(df[group_col].unique())
+    if colors is None:
+        colors = [COLOR_PRIMARY, COLOR_SECONDARY, COLOR_POSITIVE, COLOR_NEGATIVE, COLOR_NEUTRAL]
+
+    for i, val in enumerate(groups):
+        subset = df[df[group_col] == val]
+        s = calc_stats(subset)
+        if s is None:
+            continue
+        label = label_fn(val) if label_fn else str(val)
+        values = []
+        for m in metrics:
+            values.append(s.get(m, 0))
+        fig.add_trace(go.Bar(
+            name=label, x=[m.replace("_rate", "率").replace("_", " ") for m in metrics],
+            y=values, marker_color=colors[i % len(colors)],
+        ))
+
+    fig.update_layout(
+        barmode="group", yaxis_title="%", height=400,
+        margin=dict(t=30, b=50),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
 
 
 # ==============================
 # チャート関数
 # ==============================
 
-def render_radar_chart(my_stats, all_stats):
-    """スタッツレーダーチャート: 自分 vs 同卓者平均。"""
-    categories = [
-        "アガリ率", "平均打点\n(千点)", "リーチ率",
-        "副露率", "守備力\n(100-放銃率)", "局収支",
+def render_radar_chart(stats: dict, all_rounds: pd.DataFrame):
+    categories = ["アガリ率", "平均打点\n(千点)", "リーチ率", "副露率", "守備力\n(100-放銃率)", "局収支"]
+    others = all_rounds[~all_rounds["is_me"]]
+    avg_vals = {
+        "agari_rate": others["is_agari"].mean() * 100 if not others.empty else 20,
+        "agari_ten": (others.loc[others["is_agari"], "agari_ten"].mean() / 1000) if others["is_agari"].any() else 5,
+        "reach_rate": others["is_reach"].mean() * 100 if not others.empty else 20,
+        "naki_rate": others["is_naki"].mean() * 100 if not others.empty else 30,
+        "houjuu_rate": others["is_houjuu"].mean() * 100 if not others.empty else 12,
+        "score_change": others["score_change"].mean() if not others.empty else 0,
+    }
+
+    def norm(val, lo, hi):
+        return max(0, min(1, (val - lo) / (hi - lo))) if hi != lo else 0.5
+
+    ranges = [(10, 30), (3, 10), (10, 35), (15, 45), (80, 95), (-10, 15)]
+    my = [
+        norm(stats["agari_rate"], *ranges[0]),
+        norm(stats["avg_agari_ten"] / 1000, *ranges[1]),
+        norm(stats["reach_rate"], *ranges[2]),
+        norm(stats["naki_rate"], *ranges[3]),
+        norm(100 - stats["houjuu_rate"], *ranges[4]),
+        norm(stats["avg_score_change"], *ranges[5]),
     ]
-
-    avg = all_stats[~all_stats["is_me"]].mean(numeric_only=True).fillna(0)
-    my = my_stats.iloc[0]
-
-    def normalize(val, min_val, max_val):
-        return max(0, min(1, (val - min_val) / (max_val - min_val))) if max_val != min_val else 0.5
-
-    ranges = [
-        (10, 30),     # アガリ率
-        (3, 10),      # 平均打点(千点)
-        (10, 35),     # リーチ率
-        (15, 45),     # 副露率
-        (80, 95),     # 守備力(100-放銃率)
-        (-10, 15),    # 局収支
-    ]
-
-    my_values = [
-        normalize(float(my["agari_rate"]), *ranges[0]),
-        normalize(float(my["avg_agari_ten"]) / 1000, *ranges[1]),
-        normalize(float(my["reach_rate"]), *ranges[2]),
-        normalize(float(my["naki_rate"]), *ranges[3]),
-        normalize(100 - float(my["houjuu_rate"]), *ranges[4]),
-        normalize(float(my["avg_score_change"]), *ranges[5]),
-    ]
-
-    avg_values = [
-        normalize(float(avg.get("agari_rate", 20)), *ranges[0]),
-        normalize(float(avg.get("avg_agari_ten", 5000)) / 1000, *ranges[1]),
-        normalize(float(avg.get("reach_rate", 20)), *ranges[2]),
-        normalize(float(avg.get("naki_rate", 30)), *ranges[3]),
-        normalize(100 - float(avg.get("houjuu_rate", 12)), *ranges[4]),
-        normalize(float(avg.get("avg_score_change", 0)), *ranges[5]),
+    avg = [
+        norm(avg_vals["agari_rate"], *ranges[0]),
+        norm(avg_vals["agari_ten"], *ranges[1]),
+        norm(avg_vals["reach_rate"], *ranges[2]),
+        norm(avg_vals["naki_rate"], *ranges[3]),
+        norm(100 - avg_vals["houjuu_rate"], *ranges[4]),
+        norm(avg_vals["score_change"], *ranges[5]),
     ]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=my_values + [my_values[0]],
-        theta=categories + [categories[0]],
-        fill="toself",
-        name="自分",
-        line=dict(color=COLOR_PRIMARY),
-        fillcolor="rgba(31, 119, 180, 0.2)",
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=avg_values + [avg_values[0]],
-        theta=categories + [categories[0]],
-        fill="toself",
-        name="同卓者平均",
-        line=dict(color=COLOR_NEUTRAL, dash="dot"),
-        fillcolor="rgba(127, 127, 127, 0.1)",
-    ))
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=False, range=[0, 1])),
-        showlegend=True,
-        height=400,
-        margin=dict(t=30, b=30, l=60, r=60),
-    )
+    fig.add_trace(go.Scatterpolar(r=my + [my[0]], theta=categories + [categories[0]],
+        fill="toself", name="自分", line=dict(color=COLOR_PRIMARY), fillcolor="rgba(31,119,180,0.2)"))
+    fig.add_trace(go.Scatterpolar(r=avg + [avg[0]], theta=categories + [categories[0]],
+        fill="toself", name="同卓者平均", line=dict(color=COLOR_NEUTRAL, dash="dot"), fillcolor="rgba(127,127,127,0.1)"))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])),
+        showlegend=True, height=400, margin=dict(t=30, b=30, l=60, r=60))
     return fig
 
 
 def render_cumulative_point_chart(games):
-    """累積ポイント推移（ホバーで対戦相手・順位表示）。"""
     df = games.copy()
     df["game_number"] = range(1, len(df) + 1)
-    df["hover_text"] = df.apply(
-        lambda r: (
-            f"第{r['game_number']}戦<br>"
-            f"順位: {int(r['final_rank'])}位 ({r['final_point']:+.1f}pt)<br>"
-            f"累積: {r['cumulative_point']:+.1f}pt<br>"
-            f"vs {r['opponent1_name']}, {r['opponent2_name']}, {r['opponent3_name']}"
-        ),
-        axis=1,
-    )
-
-    # 各点の色を順位で変える
+    df["hover_text"] = df.apply(lambda r: (
+        f"第{r['game_number']}戦<br>順位: {int(r['final_rank'])}位 ({r['final_point']:+.1f}pt)<br>"
+        f"累積: {r['cumulative_point']:+.1f}pt<br>"
+        f"vs {r['opponent1_name']}, {r['opponent2_name']}, {r['opponent3_name']}"
+    ), axis=1)
     rank_colors = {1: COLOR_POSITIVE, 2: COLOR_PRIMARY, 3: COLOR_SECONDARY, 4: COLOR_NEGATIVE}
-    df["color"] = df["final_rank"].map(rank_colors)
 
     fig = go.Figure()
-    # ライン
-    fig.add_trace(go.Scatter(
-        x=df["game_number"],
-        y=df["cumulative_point"],
-        mode="lines",
-        line=dict(color=COLOR_PRIMARY, width=2),
-        showlegend=False,
-        hoverinfo="skip",
-    ))
-    # 各点（順位で色分け）
+    fig.add_trace(go.Scatter(x=df["game_number"], y=df["cumulative_point"],
+        mode="lines", line=dict(color=COLOR_PRIMARY, width=2), showlegend=False, hoverinfo="skip"))
     for rank, color in rank_colors.items():
         mask = df["final_rank"] == rank
-        fig.add_trace(go.Scatter(
-            x=df.loc[mask, "game_number"],
-            y=df.loc[mask, "cumulative_point"],
-            mode="markers",
-            marker=dict(size=10, color=color),
-            name=f"{rank}位",
-            text=df.loc[mask, "hover_text"],
-            hovertemplate="%{text}<extra></extra>",
-        ))
-    # 0ptライン
+        fig.add_trace(go.Scatter(x=df.loc[mask, "game_number"], y=df.loc[mask, "cumulative_point"],
+            mode="markers", marker=dict(size=10, color=color), name=f"{rank}位",
+            text=df.loc[mask, "hover_text"], hovertemplate="%{text}<extra></extra>"))
     fig.add_hline(y=0, line_dash="dash", line_color=COLOR_NEUTRAL, opacity=0.5)
-    fig.update_layout(
-        xaxis_title="対局数",
-        yaxis_title="累積ポイント",
-        height=400,
-        margin=dict(t=30, b=50),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
+    fig.update_layout(xaxis_title="対局数", yaxis_title="累積ポイント", height=400,
+        margin=dict(t=30, b=50), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
 
 def render_score_distribution(rounds):
-    """打点分布ヒストグラム（アガリ vs 放銃）。"""
     agari = rounds[rounds["is_agari"]]["agari_ten"].dropna()
     houjuu = rounds[rounds["is_houjuu"]]["houjuu_ten"].dropna()
-
     fig = go.Figure()
     if not agari.empty:
-        fig.add_trace(go.Histogram(
-            x=agari,
-            name="アガリ打点",
-            marker_color=COLOR_POSITIVE,
-            opacity=0.7,
-            xbins=dict(size=2000),
-        ))
+        fig.add_trace(go.Histogram(x=agari, name="アガリ打点", marker_color=COLOR_POSITIVE, opacity=0.7, xbins=dict(size=2000)))
     if not houjuu.empty:
-        fig.add_trace(go.Histogram(
-            x=houjuu,
-            name="放銃打点",
-            marker_color=COLOR_NEGATIVE,
-            opacity=0.7,
-            xbins=dict(size=2000),
-        ))
-    fig.update_layout(
-        barmode="overlay",
-        xaxis_title="打点",
-        yaxis_title="回数",
-        height=350,
-        margin=dict(t=30, b=50),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
+        fig.add_trace(go.Histogram(x=houjuu, name="放銃打点", marker_color=COLOR_NEGATIVE, opacity=0.7, xbins=dict(size=2000)))
+    fig.update_layout(barmode="overlay", xaxis_title="打点", yaxis_title="回数", height=350,
+        margin=dict(t=30, b=50), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
 
 def render_round_heatmap(rounds, games):
-    """局収支ヒートマップ（横: 局番号、縦: 対局）。"""
-    import pandas as pd
-
-    round_labels = {
-        0: "東1", 1: "東2", 2: "東3", 3: "東4",
-        4: "南1", 5: "南2", 6: "南3", 7: "南4",
-    }
-
     df = rounds.copy()
-    df["round_label"] = df["round_number"].map(round_labels).fillna(df["round_number"].astype(str))
-
-    # 対局番号を付与
+    df["round_label"] = df["round_number"].map(ROUND_LABELS).fillna(df["round_number"].astype(str))
     game_order = {gid: i + 1 for i, gid in enumerate(games["game_id"].values)}
     df["game_number"] = df["game_id"].map(game_order)
     df = df.dropna(subset=["game_number"])
-
-    # 同一対局・同一局番号で複数行ある場合（連荘）は合算
-    pivot = df.pivot_table(
-        values="score_change",
-        index="game_number",
-        columns="round_label",
-        aggfunc="sum",
-    )
-
-    # 列を局の順序で並び替え
-    col_order = [round_labels.get(i, str(i)) for i in range(8)]
+    pivot = df.pivot_table(values="score_change", index="game_number", columns="round_label", aggfunc="sum")
+    col_order = [ROUND_LABELS.get(i, str(i)) for i in range(8)]
     col_order = [c for c in col_order if c in pivot.columns]
     pivot = pivot[col_order]
-
     fig = go.Figure(data=go.Heatmap(
-        z=pivot.values,
-        x=pivot.columns.tolist(),
-        y=[f"第{int(g)}戦" for g in pivot.index],
-        colorscale=[
-            [0, COLOR_NEGATIVE],
-            [0.5, "#ffffff"],
-            [1, COLOR_POSITIVE],
-        ],
-        zmid=0,
-        text=pivot.values,
-        texttemplate="%{text:.0f}",
-        textfont=dict(size=10),
-        hovertemplate="対局: %{y}<br>局: %{x}<br>収支: %{z:+.0f}<extra></extra>",
-    ))
-    fig.update_layout(
-        xaxis_title="局",
-        yaxis_title="対局",
-        height=max(300, len(pivot) * 35 + 100),
-        margin=dict(t=30, b=50),
-        yaxis=dict(autorange="reversed"),
-    )
+        z=pivot.values, x=pivot.columns.tolist(), y=[f"第{int(g)}戦" for g in pivot.index],
+        colorscale=[[0, COLOR_NEGATIVE], [0.5, "#ffffff"], [1, COLOR_POSITIVE]],
+        zmid=0, text=pivot.values, texttemplate="%{text:.0f}", textfont=dict(size=10),
+        hovertemplate="対局: %{y}<br>局: %{x}<br>収支: %{z:+.0f}<extra></extra>"))
+    fig.update_layout(xaxis_title="局", yaxis_title="対局",
+        height=max(300, len(pivot) * 35 + 100), margin=dict(t=30, b=50), yaxis=dict(autorange="reversed"))
     return fig
 
 
-def render_yaku_treemap(yaku):
-    """役構成ツリーマップ。"""
-    if yaku.empty:
+def render_yaku_treemap(yaku_df):
+    if yaku_df.empty:
         return None
-
-    df = yaku.copy()
-
-    # カテゴリ分類
-    menzen_yaku = {"立直", "門前清自摸和", "平和", "一盃口", "二盃口", "七対子", "一発"}
-    furo_yaku = {
-        "役牌 白", "役牌 發", "役牌 中",
-        "自風 東", "自風 南", "自風 西", "自風 北",
-        "場風 東", "場風 南", "場風 西", "場風 北",
-    }
-
-    def classify(name):
-        if name in menzen_yaku:
-            return "門前系"
-        if name in furo_yaku:
-            return "副露系"
-        return "その他"
-
-    df["category"] = df["yaku_name"].apply(classify)
-
-    fig = px.treemap(
-        df,
-        path=["category", "yaku_name"],
-        values="yaku_count",
-        color="yaku_count",
-        color_continuous_scale=[COLOR_PRIMARY, COLOR_SECONDARY],
-    )
-    fig.update_layout(
-        height=400,
-        margin=dict(t=30, b=10, l=10, r=10),
-        coloraxis_showscale=False,
-    )
-    fig.update_traces(
-        texttemplate="<b>%{label}</b><br>%{value}回",
-        textfont=dict(size=13),
-    )
+    fig = px.treemap(yaku_df, path=["yaku_category", "yaku_name"], values="count",
+        color="count", color_continuous_scale=[COLOR_PRIMARY, COLOR_SECONDARY])
+    fig.update_layout(height=400, margin=dict(t=30, b=10, l=10, r=10), coloraxis_showscale=False)
+    fig.update_traces(texttemplate="<b>%{label}</b><br>%{value}回", textfont=dict(size=13))
     return fig
+
+
+# ==============================
+# 役データ加工
+# ==============================
+
+def process_yaku_data(yaku_detail, filtered_rounds):
+    if filtered_rounds.empty or yaku_detail.empty:
+        return pd.DataFrame()
+    keys = set(zip(filtered_rounds["game_id"], filtered_rounds["round_index"]))
+    filtered = yaku_detail[yaku_detail.apply(lambda r: (r["game_id"], r["round_index"]) in keys, axis=1)]
+    if filtered.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for _, r in filtered.iterrows():
+        for entry in str(r["agari_yaku"]).split(","):
+            parts = entry.rsplit(":", 1)
+            if len(parts) != 2:
+                continue
+            name_raw, han = parts[0], parts[1]
+            if name_raw in ("ドラ", "裏ドラ", "赤ドラ"):
+                continue
+            if name_raw.startswith("場風 "):
+                name, cat = name_raw[3:], "場風"
+            elif name_raw.startswith("自風 "):
+                name, cat = name_raw[3:], "自風"
+            elif name_raw.startswith("役牌 "):
+                name, cat = name_raw[3:], "三元牌"
+            elif name_raw in ("立直", "一発", "門前清自摸和", "平和", "一盃口", "二盃口", "七対子"):
+                name, cat = name_raw, "門前系"
+            else:
+                name, cat = name_raw, "その他"
+            rows.append({"yaku_name": name, "yaku_category": cat, "han": int(han)})
+
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    return df.groupby(["yaku_category", "yaku_name"]).agg(count=("han", "size"), avg_han=("han", "mean")).reset_index().sort_values("count", ascending=False)
 
 
 # ==============================
@@ -347,142 +317,189 @@ def main():
     st.set_page_config(page_title="天鳳成績ダッシュボード", layout="wide")
     st.title("天鳳成績ダッシュボード")
 
-    stats = load_player_stats()
-    all_stats = load_all_player_stats()
+    rounds_raw = load_round_player_stats()
+    all_rounds = load_all_round_player_stats()
     games = load_game_results()
-    yaku = load_yaku_stats()
-    rounds = load_round_details()
+    yaku_detail = load_yaku_detail()
 
-    if stats.empty:
+    if rounds_raw.empty:
         st.warning("データがありません。mjlogファイルをロードしてください。")
         return
 
-    row = stats.iloc[0]
+    # ===== サイドバー: 日付フィルタ =====
+    st.sidebar.header("フィルタ")
+    game_ids = rounds_raw["game_id"].unique()
+    # game_idから日付を抽出
+    date_strs = sorted(set(gid[:8] for gid in game_ids))
+    dates = [pd.to_datetime(d, format="%Y%m%d").date() for d in date_strs]
 
-    # ===== 総合スタッツ =====
-    st.header("総合スタッツ")
-    cols = st.columns(5)
-    cols[0].metric("対局数", f"{int(row['total_games'])}戦")
-    cols[1].metric("平均順位", f"{row['avg_rank']:.2f}")
-    cols[2].metric("トップ率", f"{row['top_rate']}%")
-    cols[3].metric("ラス率", f"{row['last_rate']}%")
-    cols[4].metric("平均ポイント", f"{row['avg_point']:+.1f}")
-
-    st.divider()
-
-    # ===== レーダーチャート + 詳細スタッツ =====
-    col_radar, col_detail = st.columns([1, 1])
-
-    with col_radar:
-        st.subheader("スタッツレーダー")
-        fig_radar = render_radar_chart(stats, all_stats)
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-    with col_detail:
-        col_attack, col_defense, col_reach = st.columns(3)
-
-        with col_attack:
-            st.subheader("攻撃")
-            st.metric("アガリ率", f"{row['agari_rate']}%")
-            st.metric("アガリ打点", f"{int(row['avg_agari_ten']):,}")
-            st.metric("副露アガリ打点", f"{int(row['avg_naki_agari_ten']):,}")
-            st.metric("アガリ巡目", f"{row['avg_agari_turn']:.1f}")
-            st.metric("平均ドラ", f"{row['avg_dora_count']:.2f}")
-
-        with col_defense:
-            st.subheader("守備")
-            st.metric("放銃率", f"{row['houjuu_rate']}%")
-            st.metric("放銃打点", f"{int(row['avg_houjuu_ten']):,}")
-            st.metric("アガリ放銃差", f"{row['agari_houjuu_diff']:+.1f}%")
-            st.metric("調整打点効率", f"{int(row['adjusted_score_efficiency']):,}")
-
-        with col_reach:
-            st.subheader("リーチ・副露")
-            st.metric("リーチ率", f"{row['reach_rate']}%")
-            st.metric("先制率", f"{row['first_reach_rate']}%")
-            st.metric("副露率", f"{row['naki_rate']}%")
-            st.metric("局収支", f"{row['avg_score_change']:+.1f}")
-
-    st.divider()
-
-    # ===== 対局履歴 =====
-    st.header("対局履歴")
-
-    col_cumulative, col_rank = st.columns([3, 1])
-
-    with col_cumulative:
-        st.subheader("累積ポイント推移")
-        fig_cumulative = render_cumulative_point_chart(games)
-        st.plotly_chart(fig_cumulative, use_container_width=True)
-
-    with col_rank:
-        st.subheader("順位分布")
-        rank_counts = games["final_rank"].value_counts().sort_index()
-        rank_colors = [COLOR_POSITIVE, COLOR_PRIMARY, COLOR_SECONDARY, COLOR_NEGATIVE]
-        fig_rank = go.Figure(data=[go.Bar(
-            x=[f"{i}位" for i in rank_counts.index],
-            y=rank_counts.values,
-            marker_color=rank_colors[:len(rank_counts)],
-            text=rank_counts.values,
-            textposition="auto",
-        )])
-        fig_rank.update_layout(
-            height=400,
-            margin=dict(t=30, b=50),
-            yaxis_title="回数",
+    if len(dates) >= 2:
+        date_range = st.sidebar.date_input(
+            "日付範囲",
+            value=(min(dates), max(dates)),
+            min_value=min(dates),
+            max_value=max(dates),
         )
-        st.plotly_chart(fig_rank, use_container_width=True)
+        if isinstance(date_range, tuple) and len(date_range) == 2:
+            start_str = date_range[0].strftime("%Y%m%d")
+            end_str = date_range[1].strftime("%Y%m%d")
+            rounds = rounds_raw[
+                (rounds_raw["game_id"].str[:8] >= start_str) &
+                (rounds_raw["game_id"].str[:8] <= end_str)
+            ]
+        else:
+            rounds = rounds_raw
+    else:
+        rounds = rounds_raw
 
-    st.subheader("対局結果一覧")
-    display_cols = [
-        "game_id", "final_rank", "final_point", "num_rounds",
-        "opponent1_name", "opponent2_name", "opponent3_name",
-        "cumulative_point",
-    ]
-    display_df = games[display_cols].copy()
-    display_df.columns = [
-        "対局ID", "順位", "ポイント", "局数",
-        "対戦者1", "対戦者2", "対戦者3",
-        "累積ポイント",
-    ]
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    if rounds.empty:
+        st.warning("選択した日付範囲にデータがありません。")
+        return
 
-    st.divider()
+    stats = calc_stats(rounds)
+    st.sidebar.metric("対象局数", f"{stats['total_rounds']}局")
+    st.sidebar.metric("対局数", f"{len(rounds['game_id'].unique())}戦")
 
-    # ===== 打点分布 + 局収支ヒートマップ =====
-    st.header("打点分析")
+    # ===== 総合メトリクス =====
+    cols = st.columns(6)
+    cols[0].metric("局収支", f"{stats['avg_score_change']:+.1f}")
+    cols[1].metric("アガリ率", f"{stats['agari_rate']:.1f}%")
+    cols[2].metric("放銃率", f"{stats['houjuu_rate']:.1f}%")
+    cols[3].metric("リーチ率", f"{stats['reach_rate']:.1f}%")
+    cols[4].metric("副露率", f"{stats['naki_rate']:.1f}%")
+    agari_houjuu_diff = stats["agari_rate"] - stats["houjuu_rate"]
+    cols[5].metric("アガリ放銃差", f"{agari_houjuu_diff:+.1f}%")
 
-    col_dist, col_heat = st.columns(2)
+    # ===== タブ =====
+    tab_overview, tab_wind, tab_dealer, tab_round, tab_rank, tab_history = st.tabs(
+        ["総合", "東場/南場", "親/子", "局別", "順位状況別", "対局履歴"]
+    )
 
-    with col_dist:
-        st.subheader("打点分布（アガリ vs 放銃）")
-        fig_dist = render_score_distribution(rounds)
-        st.plotly_chart(fig_dist, use_container_width=True)
+    # --- 総合タブ ---
+    with tab_overview:
+        col_radar, col_detail = st.columns([1, 1])
+        with col_radar:
+            st.subheader("スタッツレーダー")
+            st.plotly_chart(render_radar_chart(stats, all_rounds), use_container_width=True)
+        with col_detail:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.subheader("攻撃")
+                st.metric("アガリ打点", f"{int(stats['avg_agari_ten']):,}")
+                st.metric("副露アガリ打点", f"{int(stats['avg_naki_agari_ten']):,}")
+                st.metric("アガリ巡目", f"{stats['avg_agari_turn']:.1f}")
+                st.metric("平均ドラ", f"{stats['avg_dora_count']:.2f}")
+            with c2:
+                st.subheader("守備")
+                st.metric("放銃打点", f"{int(stats['avg_houjuu_ten']):,}")
+                st.metric("被ツモ率", f"{stats['hi_tsumo_rate']:.1f}%")
+                st.metric("被ツモ打点", f"{int(stats['avg_hi_tsumo_ten']):,}")
+                adjusted = stats["agari_rate"] / 100 * stats["avg_agari_ten"] - stats["houjuu_rate"] / 100 * stats["avg_houjuu_ten"]
+                st.metric("調整打点効率", f"{adjusted:+,.0f}")
+            with c3:
+                st.subheader("リーチ・副露")
+                st.metric("先制率", f"{stats['first_reach_rate']:.1f}%")
+                st.metric("流局平得", f"{stats['avg_ryuukyoku_score_change']:+.1f}")
 
-    with col_heat:
-        st.subheader("局収支ヒートマップ")
-        fig_heat = render_round_heatmap(rounds, games)
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.divider()
+        col_dist, col_heat = st.columns(2)
+        with col_dist:
+            st.subheader("打点分布（アガリ vs 放銃）")
+            st.plotly_chart(render_score_distribution(rounds), use_container_width=True)
+        with col_heat:
+            st.subheader("局収支ヒートマップ")
+            st.plotly_chart(render_round_heatmap(rounds, games), use_container_width=True)
 
-    st.divider()
+        st.divider()
+        yaku_processed = process_yaku_data(yaku_detail, rounds)
+        col_tree, col_ytable = st.columns([2, 1])
+        with col_tree:
+            st.subheader("役構成")
+            fig = render_yaku_treemap(yaku_processed)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+        with col_ytable:
+            st.subheader("役別アガリ回数")
+            if not yaku_processed.empty:
+                yd = yaku_processed[["yaku_name", "count", "avg_han"]].copy()
+                yd["avg_han"] = yd["avg_han"].round(1)
+                yd.columns = ["役名", "回数", "平均翻数"]
+                st.dataframe(yd, use_container_width=True, hide_index=True)
 
-    # ===== 役別スタッツ =====
-    st.header("役別アガリ分析")
+    # --- 東場/南場タブ ---
+    with tab_wind:
+        rounds["wind_group"] = rounds["round_number"].apply(lambda x: "東場" if x <= 3 else "南場")
+        st.subheader("東場 vs 南場 スタッツ比較")
+        table = grouped_stats_table(rounds, "wind_group")
+        st.dataframe(table, use_container_width=True, hide_index=True)
 
-    col_treemap, col_yaku_table = st.columns([2, 1])
+        metrics = ["agari_rate", "houjuu_rate", "reach_rate", "naki_rate", "hi_tsumo_rate"]
+        fig = grouped_bar_chart(rounds, "wind_group", metrics, colors=[COLOR_PRIMARY, COLOR_SECONDARY])
+        st.plotly_chart(fig, use_container_width=True)
 
-    with col_treemap:
-        st.subheader("役構成（門前系 / 副露系 / その他）")
-        fig_treemap = render_yaku_treemap(yaku)
-        if fig_treemap:
-            st.plotly_chart(fig_treemap, use_container_width=True)
+    # --- 親/子タブ ---
+    with tab_dealer:
+        rounds["dealer_group"] = rounds["is_dealer"].apply(lambda x: "親" if x else "子")
+        st.subheader("親 vs 子 スタッツ比較")
+        table = grouped_stats_table(rounds, "dealer_group")
+        st.dataframe(table, use_container_width=True, hide_index=True)
 
-    with col_yaku_table:
-        st.subheader("役別アガリ回数")
-        if not yaku.empty:
-            yaku_display = yaku[["yaku_name", "yaku_count", "avg_han"]].copy()
-            yaku_display.columns = ["役名", "回数", "平均翻数"]
-            st.dataframe(yaku_display, use_container_width=True, hide_index=True)
+        metrics = ["agari_rate", "houjuu_rate", "reach_rate", "naki_rate", "hi_tsumo_rate"]
+        fig = grouped_bar_chart(rounds, "dealer_group", metrics, colors=[COLOR_POSITIVE, COLOR_PRIMARY])
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- 局別タブ ---
+    with tab_round:
+        st.subheader("局別スタッツ比較")
+        rounds["round_label_sort"] = rounds["round_number"]
+        table = grouped_stats_table(rounds, "round_number", label_fn=lambda x: ROUND_LABELS.get(x, str(x)))
+        st.dataframe(table, use_container_width=True, hide_index=True)
+
+        metrics = ["agari_rate", "houjuu_rate", "reach_rate", "naki_rate"]
+        fig = grouped_bar_chart(rounds, "round_number", metrics,
+            label_fn=lambda x: ROUND_LABELS.get(x, str(x)),
+            colors=[COLOR_PRIMARY, COLOR_SECONDARY, COLOR_POSITIVE, COLOR_NEGATIVE,
+                    "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"])
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- 順位状況別タブ ---
+    with tab_rank:
+        st.subheader("局開始時の順位別スタッツ比較")
+        table = grouped_stats_table(rounds, "rank_at_start", label_fn=lambda x: f"{int(x)}位")
+        st.dataframe(table, use_container_width=True, hide_index=True)
+
+        metrics = ["agari_rate", "houjuu_rate", "reach_rate", "naki_rate"]
+        fig = grouped_bar_chart(rounds, "rank_at_start", metrics,
+            label_fn=lambda x: f"{int(x)}位",
+            colors=[COLOR_POSITIVE, COLOR_PRIMARY, COLOR_SECONDARY, COLOR_NEGATIVE])
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- 対局履歴タブ ---
+    with tab_history:
+        col_cum, col_rnk = st.columns([3, 1])
+        with col_cum:
+            st.subheader("累積ポイント推移")
+            st.plotly_chart(render_cumulative_point_chart(games), use_container_width=True)
+        with col_rnk:
+            st.subheader("順位分布")
+            rc = games["final_rank"].value_counts().sort_index()
+            fig_r = go.Figure(data=[go.Bar(
+                x=[f"{i}位" for i in rc.index], y=rc.values,
+                marker_color=[COLOR_POSITIVE, COLOR_PRIMARY, COLOR_SECONDARY, COLOR_NEGATIVE][:len(rc)],
+                text=rc.values, textposition="auto")])
+            fig_r.update_layout(height=400, margin=dict(t=30, b=50), yaxis_title="回数")
+            st.plotly_chart(fig_r, use_container_width=True)
+
+        st.subheader("対局結果一覧")
+        display_cols = ["game_id", "game_date_jst", "final_rank", "final_point", "num_rounds",
+            "opponent1_name", "opponent2_name", "opponent3_name", "cumulative_point"]
+        available = [c for c in display_cols if c in games.columns]
+        ddf = games[available].rename(columns={
+            "game_id": "対局ID", "game_date_jst": "日付", "final_rank": "順位",
+            "final_point": "ポイント", "num_rounds": "局数",
+            "opponent1_name": "対戦者1", "opponent2_name": "対戦者2",
+            "opponent3_name": "対戦者3", "cumulative_point": "累積ポイント"})
+        st.dataframe(ddf, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
