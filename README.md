@@ -115,6 +115,12 @@ uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt
 uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt --full-refresh
 ```
 
+### Streamlitダッシュボード
+
+```bash
+uv run streamlit run streamlit/app.py
+```
+
 ### テスト
 
 ```bash
@@ -152,11 +158,18 @@ uv run pytest -v
 
 ## 開発状況
 
+### 完了
+
 - [x] mjlogパーサー実装
 - [x] BigQueryローダー実装
-- [x] GCS連携
-- [x] dbtプロジェクトセットアップ
-- [x] staging/intermediate/warehouse モデル作成
-- [x] martsモデル作成（スタッツ集計・対局結果・役別集計）
-- [ ] Streamlit可視化
-- [ ] CI/CD構築
+- [x] GCS連携（tenhou-upload / tenhou-load --source gcs）
+- [x] dbtプロジェクト（staging/intermediate/warehouse/marts）
+
+### 今後のステップ
+
+1. **Streamlitアプリ（ローカル）** — mart層のデータをダッシュボード化
+2. **Docker化** — Streamlitアプリをコンテナ化（Cloud Runデプロイの前提）
+3. **Cloud Runデプロイ（手動）** — サービスアカウント設定、`gcloud run deploy`
+4. **CI/CD（GitHub Actions）** — PR時: ruff + pytest + dbt compile / mainマージ時: Docker build → Cloud Runへ自動デプロイ
+5. **dbt実行の自動化** — CI/CDまたはCloud Run Jobsでdbt runを自動実行
+6. **dbt schema.yml / テスト整備** — モデルのdescription、カラム定義、not_null/uniqueテスト

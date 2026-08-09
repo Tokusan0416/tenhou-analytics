@@ -92,5 +92,9 @@ tests/                         # テスト
 - [x] GCS連携（gcs_loader.py, tenhou-upload CLI）
 - [x] dbtプロジェクト（staging/intermediate/warehouse）
 - [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
-- [ ] Streamlit可視化
-- [ ] CI/CD構築
+- [x] Streamlitアプリ（ローカル）— streamlit/app.py
+- [ ] Docker化
+- [ ] Cloud Runデプロイ（手動）
+- [ ] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
+- [ ] dbt実行の自動化
+- [ ] dbt schema.yml / テスト整備

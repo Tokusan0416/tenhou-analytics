@@ -5,9 +5,13 @@ description = "天鳳の対局ログを解析し、BigQueryで麻雀成績を分
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+    "db-dtypes>=1.7.1",
     "google-cloud-bigquery>=3.20.0",
     "google-cloud-storage>=2.10.0",
+    "pandas>=3.0.5",
+    "pyarrow>=14.0",
     "python-dotenv>=1.2.2",
+    "streamlit>=1.61.1",
 ]
 
 [project.scripts]
