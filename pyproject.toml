@@ -1,0 +1,26 @@
+[project]
+name = "tenhou-analytics"
+version = "0.1.0"
+description = "天鳳の対局ログを解析し、BigQueryで麻雀成績を分析するツール"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tenhou_analytics"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+src = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
