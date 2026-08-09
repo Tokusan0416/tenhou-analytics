@@ -85,34 +85,34 @@ for r in game.rounds:
     print(f"局={r.round_number} 本場={r.honba} 結果={type(r.result).__name__}")
 ```
 
-### GCSへのアップロード
+### 新しい対局ログの追加手順
+
+対局後にmjlogファイルをダウンロードしたら、以下の3ステップで反映できます。
 
 ```bash
-# mjlogファイルをGCSにアップロード（既存ファイルはスキップ）
+# 1. mjlogファイルをdata/に配置してGCSにアップロード
 uv run tenhou-upload data/
-```
 
-### BigQueryへのロード
-
-```bash
-# GCSからロード（推奨）
+# 2. GCSからBigQueryにロード（既存データはスキップ）
 uv run tenhou-load --source gcs
 
-# ローカルファイルから直接ロード
-uv run tenhou-load data/
-
-# パースのみ（BigQueryにはロードしない）
-uv run tenhou-load --source gcs --dry-run
+# 3. dbtモデルを更新
+cd dbt && uv run --group dbt dbt run --profiles-dir . && cd ..
 ```
 
-### dbt
+Streamlitを開けば新しいデータが反映されています。
+
+### その他のコマンド
 
 ```bash
-# モデルの実行
-uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt
+# ローカルファイルから直接BigQueryにロード（GCS経由しない場合）
+uv run tenhou-load data/
 
-# フルリフレッシュ
-uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt --full-refresh
+# パースのみ確認（BigQueryにはロードしない）
+uv run tenhou-load --source gcs --dry-run
+
+# dbt フルリフレッシュ（テーブルを再作成）
+cd dbt && uv run --group dbt dbt run --profiles-dir . --full-refresh && cd ..
 ```
 
 ### Streamlitダッシュボード
