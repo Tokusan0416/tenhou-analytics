@@ -1,0 +1,39 @@
+WITH
+    source AS (
+        SELECT
+            *
+        FROM
+            {{ source('tenhou_raw', 'raw_games') }}
+    )
+
+SELECT
+    game_id
+    ,my_seat
+    ,is_sanma
+    ,is_tonnansen
+    ,is_soku
+    ,is_no_red
+    ,lobby
+    ,num_rounds
+    ,player0_name
+    ,player1_name
+    ,player2_name
+    ,player3_name
+    ,player0_dan
+    ,player1_dan
+    ,player2_dan
+    ,player3_dan
+    ,player0_rate
+    ,player1_rate
+    ,player2_rate
+    ,player3_rate
+    ,final_score0
+    ,final_score1
+    ,final_score2
+    ,final_score3
+    ,final_point0
+    ,final_point1
+    ,final_point2
+    ,final_point3
+FROM
+    source

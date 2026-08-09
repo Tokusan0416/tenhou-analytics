@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os
+
 from google.cloud import bigquery
 
 from tenhou_analytics.parser.mjlog import (
@@ -13,7 +15,7 @@ from tenhou_analytics.parser.mjlog import (
     RyuukyokuResult,
 )
 
-DEFAULT_PROJECT = "invertible-vine-477701-j8"
+DEFAULT_PROJECT = os.environ.get("GCP_PROJECT_ID", "invertible-vine-477701-j8")
 DEFAULT_DATASET = "tenhou_raw"
 
 
@@ -87,10 +89,13 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                 "agari_ten": r.result.ten,
                 "agari_fu": r.result.fu,
                 "agari_han": r.result.han,
-                "agari_yaku": ",".join(y.name for y in r.result.yaku),
+                "agari_yaku": ",".join(f"{y.name}:{y.han}" for y in r.result.yaku),
                 "agari_winning_tile": r.result.winning_tile,
                 "agari_dora": ",".join(r.result.dora),
                 "agari_ura_dora": ",".join(r.result.ura_dora),
+                "agari_dora_count": sum(y.han for y in r.result.yaku if y.id == 52),
+                "agari_ura_dora_count": sum(y.han for y in r.result.yaku if y.id == 53),
+                "agari_aka_dora_count": sum(y.han for y in r.result.yaku if y.id == 54),
                 "score_change0": r.result.score_changes[0] if len(r.result.score_changes) > 0 else 0,
                 "score_change1": r.result.score_changes[1] if len(r.result.score_changes) > 1 else 0,
                 "score_change2": r.result.score_changes[2] if len(r.result.score_changes) > 2 else 0,
@@ -110,6 +115,9 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                 "agari_winning_tile": None,
                 "agari_dora": None,
                 "agari_ura_dora": None,
+                "agari_dora_count": None,
+                "agari_ura_dora_count": None,
+                "agari_aka_dora_count": None,
                 "score_change0": r.result.score_changes[0] if len(r.result.score_changes) > 0 else 0,
                 "score_change1": r.result.score_changes[1] if len(r.result.score_changes) > 1 else 0,
                 "score_change2": r.result.score_changes[2] if len(r.result.score_changes) > 2 else 0,
@@ -206,6 +214,9 @@ RAW_ROUNDS_SCHEMA = [
     bigquery.SchemaField("agari_winning_tile", "STRING"),
     bigquery.SchemaField("agari_dora", "STRING"),
     bigquery.SchemaField("agari_ura_dora", "STRING"),
+    bigquery.SchemaField("agari_dora_count", "INTEGER"),
+    bigquery.SchemaField("agari_ura_dora_count", "INTEGER"),
+    bigquery.SchemaField("agari_aka_dora_count", "INTEGER"),
     bigquery.SchemaField("score_change0", "INTEGER"),
     bigquery.SchemaField("score_change1", "INTEGER"),
     bigquery.SchemaField("score_change2", "INTEGER"),

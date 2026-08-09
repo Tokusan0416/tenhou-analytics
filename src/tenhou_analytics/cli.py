@@ -9,7 +9,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from tenhou_analytics.loader.bq_loader import load_game_to_bigquery
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
 from tenhou_analytics.loader.gcs_loader import (
     load_from_gcs,
     upload_to_gcs,
@@ -78,8 +82,8 @@ def main_load() -> None:
     )
     parser.add_argument(
         "--project",
-        default="invertible-vine-477701-j8",
-        help="GCPプロジェクトID",
+        default=DEFAULT_PROJECT,
+        help="GCPプロジェクトID（環境変数 GCP_PROJECT_ID でも設定可）",
     )
     parser.add_argument(
         "--dataset",

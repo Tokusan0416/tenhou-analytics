@@ -105,11 +105,38 @@ uv run tenhou-load data/
 uv run tenhou-load --source gcs --dry-run
 ```
 
+### dbt
+
+```bash
+# モデルの実行
+uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt
+
+# フルリフレッシュ
+uv run --group dbt dbt run --profiles-dir dbt --project-dir dbt --full-refresh
+```
+
 ### テスト
 
 ```bash
 uv run pytest -v
 ```
+
+## dbtレイヤー構成
+
+| レイヤー | データセット | 内容 |
+|---|---|---|
+| staging | `tenhou_staging` | rawテーブルの1:1変換 |
+| intermediate | `tenhou_staging` | 副露/リーチ順序/アガリ巡目の導出 |
+| warehouse | `tenhou_warehouse` | DIM/FACTテーブル |
+| marts | `tenhou_marts` | レポート・可視化用（将来） |
+
+### warehouseのテーブル
+
+- `dim_players`: プレイヤーディメンション
+- `dim_game_types`: ゲーム種別ディメンション
+- `fct_games`: 対局 × プレイヤーのファクト（順位・ポイント）
+- `fct_rounds`: 局ファクト
+- `fct_round_player_stats`: プレイヤー × 局のファクト（全スタッツの算出基盤）
 
 ## コスト
 
@@ -121,6 +148,8 @@ uv run pytest -v
 
 - [x] mjlogパーサー実装
 - [x] BigQueryローダー実装
-- [ ] dbtプロジェクトセットアップ
-- [ ] staging/intermediate/martsモデル作成
+- [x] GCS連携
+- [x] dbtプロジェクトセットアップ
+- [x] staging/intermediate/warehouse モデル作成
+- [ ] martsモデル作成（レポート・可視化用）
 - [ ] Streamlit可視化

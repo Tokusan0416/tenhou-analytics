@@ -7,7 +7,7 @@ from pathlib import Path
 
 from google.cloud import storage
 
-from tenhou_analytics.loader.bq_loader import load_game_to_bigquery
+from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
 from tenhou_analytics.parser.mjlog import Game, parse_mjlog
 
 DEFAULT_BUCKET = "tenhou-log-raw"
@@ -49,7 +49,7 @@ def list_gcs_files(
 def load_from_gcs(
     *,
     bucket_name: str = DEFAULT_BUCKET,
-    project: str = "invertible-vine-477701-j8",
+    project: str = DEFAULT_PROJECT,
     dataset: str = "tenhou_raw",
     dry_run: bool = False,
 ) -> list[dict]:

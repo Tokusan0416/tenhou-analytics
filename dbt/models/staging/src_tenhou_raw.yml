@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: tenhou_raw
+    database: "{{ env_var('GCP_PROJECT_ID', 'invertible-vine-477701-j8') }}"
+    schema: tenhou_raw
+    tables:
+      - name: raw_games
+        description: "対局メタ情報"
+      - name: raw_rounds
+        description: "局ごとの情報"
+      - name: raw_actions
+        description: "巡目ごとのアクション"

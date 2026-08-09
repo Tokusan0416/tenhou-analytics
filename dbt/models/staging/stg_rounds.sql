@@ -1,0 +1,47 @@
+WITH
+    source AS (
+        SELECT
+            *
+        FROM
+            {{ source('tenhou_raw', 'raw_rounds') }}
+    )
+
+SELECT
+    game_id
+    ,round_index
+    ,round_number
+    ,honba
+    ,riichi_sticks
+    ,dora_indicator
+    ,dealer
+    ,starting_score0
+    ,starting_score1
+    ,starting_score2
+    ,starting_score3
+    ,hand0
+    ,hand1
+    ,hand2
+    ,hand3
+    ,reach_players
+    ,result_type
+    ,agari_winner
+    ,agari_from_who
+    ,agari_is_tsumo
+    ,agari_ten
+    ,agari_fu
+    ,agari_han
+    ,agari_yaku
+    ,agari_winning_tile
+    ,agari_dora
+    ,agari_ura_dora
+    ,agari_dora_count
+    ,agari_ura_dora_count
+    ,agari_aka_dora_count
+    ,score_change0
+    ,score_change1
+    ,score_change2
+    ,score_change3
+    ,ryuukyoku_reason
+    ,tenpai_players
+FROM
+    source

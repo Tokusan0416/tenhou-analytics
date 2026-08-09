@@ -19,7 +19,7 @@
 ```
 src/tenhou_analytics/parser/   # mjlogパーサー（gzip XML → 構造化データ）
 src/tenhou_analytics/loader/   # BigQueryローダー
-dbt/                           # dbtプロジェクト（staging/intermediate/marts）
+dbt/                           # dbtプロジェクト（staging/intermediate/warehouse/marts）
 streamlit/                     # 可視化（将来）
 data/                          # mjlogファイル（git管理外）
 tests/                         # テスト
@@ -43,8 +43,14 @@ tests/                         # テスト
   - `raw_games`: 対局メタ情報（プレイヤー、ルール、最終スコア）
   - `raw_rounds`: 局ごとの情報（局、本場、配牌、ドラ、和了/流局結果）
   - `raw_actions`: 巡目ごとのアクション（ツモ/打牌/鳴き）
-- `tenhou_staging`: dbt staging層
-- `tenhou_marts`: dbt分析用テーブル
+- `tenhou_staging`: dbt staging層 + intermediate層（ビュー）
+- `tenhou_warehouse`: DIM/FACTテーブル（ディメンショナルモデル）
+  - `dim_players`: プレイヤーディメンション
+  - `dim_game_types`: ゲーム種別ディメンション
+  - `fct_games`: 対局×プレイヤーファクト（順位・ポイント）
+  - `fct_rounds`: 局ファクト
+  - `fct_round_player_stats`: プレイヤー×局ファクト（全スタッツの算出基盤）
+- `tenhou_marts`: レポート・可視化用の集計テーブル（将来）
 
 ## GCSバケット
 
@@ -71,6 +77,7 @@ tests/                         # テスト
 - Python: ruffでフォーマット・リント
 - テスト: pytest
 - 型ヒント: 使用する
+- SQL: 予約語・関数は大文字、Leading comma、テーブルにはASエイリアス、GROUP BYはカラムごと改行、WITH内はインデント
 - dbt: SQLFluffでリント（将来）
 
 ## 開発ワークフロー
@@ -83,5 +90,6 @@ tests/                         # テスト
 - [x] mjlogパーサー（constants.py, mjlog.py）
 - [x] BigQueryローダー（bq_loader.py, cli.py）
 - [x] GCS連携（gcs_loader.py, tenhou-upload CLI）
-- [ ] dbtプロジェクト
+- [x] dbtプロジェクト（staging/intermediate/warehouse）
+- [ ] martsモデル（レポート・可視化用集計）
 - [ ] Streamlit可視化

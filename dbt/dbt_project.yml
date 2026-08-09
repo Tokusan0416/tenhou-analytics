@@ -1,0 +1,27 @@
+name: 'tenhou_analytics'
+version: '0.1.0'
+
+profile: 'tenhou_analytics'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  tenhou_analytics:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: staging
+      +materialized: view
+    warehouse:
+      +schema: warehouse
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table

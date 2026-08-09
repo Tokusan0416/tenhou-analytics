@@ -13,3 +13,13 @@ data/
 
 # OS
 .DS_Store
+
+# Environment
+.env
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/package-lock.yml
+dbt/.user.yml

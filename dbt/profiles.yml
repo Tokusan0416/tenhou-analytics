@@ -1,0 +1,10 @@
+tenhou_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'invertible-vine-477701-j8') }}"
+      dataset: tenhou_staging
+      location: asia-northeast1
+      threads: 4
