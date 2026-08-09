@@ -47,10 +47,14 @@ tests/                         # テスト
 - `tenhou_warehouse`: DIM/FACTテーブル（ディメンショナルモデル）
   - `dim_players`: プレイヤーディメンション
   - `dim_game_types`: ゲーム種別ディメンション
-  - `fct_games`: 対局×プレイヤーファクト（順位・ポイント）
+  - `dim_rounds`: 局ディメンション（局ラベル・東場南場・オーラス）
+  - `fct_games`: 対局×プレイヤーファクト（順位・ポイント・game_date・game_order）
   - `fct_rounds`: 局ファクト
-  - `fct_round_player_stats`: プレイヤー×局ファクト（全スタッツの算出基盤）
-- `tenhou_marts`: レポート・可視化用の集計テーブル（将来）
+  - `fct_round_player_stats`: プレイヤー×局ファクト（アガリ/放銃/被ツモ/横移動/副露/リーチ/順位状況/本場/供託）
+- `tenhou_marts`: レポート・可視化用の集計テーブル
+  - `mart_player_stats`: プレイヤー別スタッツ集計
+  - `mart_game_results`: 対局結果一覧（累積ポイント付き）
+  - `mart_yaku_stats`: 役別アガリ集計（カテゴリ・門前副露判定付き）
 
 ## GCSバケット
 

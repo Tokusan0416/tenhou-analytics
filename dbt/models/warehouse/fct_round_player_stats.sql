@@ -6,6 +6,9 @@ WITH
         SELECT
             r.game_id
             ,r.round_index
+            ,r.round_number
+            ,r.honba
+            ,r.riichi_sticks
             ,g.seat AS player_seat
             ,g.player_name
             ,g.is_me
@@ -34,9 +37,36 @@ WITH
         ])
     )
 
+    -- 局開始時の各プレイヤーの順位・トップとの点差
+    ,starting_ranks AS (
+        SELECT
+            game_id
+            ,round_index
+            ,seat
+            ,starting_score
+            ,RANK() OVER (
+                PARTITION BY game_id, round_index
+                ORDER BY starting_score DESC
+            ) AS rank_at_start
+            ,MAX(starting_score) OVER (
+                PARTITION BY game_id, round_index
+            ) - starting_score AS point_diff_to_top
+        FROM
+            {{ ref('stg_rounds') }}
+        CROSS JOIN UNNEST([
+            STRUCT(0 AS seat, starting_score0 AS starting_score)
+            ,STRUCT(1, starting_score1)
+            ,STRUCT(2, starting_score2)
+            ,STRUCT(3, starting_score3)
+        ])
+    )
+
 SELECT
     rp.game_id
     ,rp.round_index
+    ,rp.round_number
+    ,rp.honba
+    ,rp.riichi_sticks
     ,rp.player_seat
     ,rp.player_name
     ,rp.is_me
@@ -63,6 +93,21 @@ SELECT
         WHEN r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat THEN r.agari_ten
     END AS houjuu_ten
 
+    -- 被ツモ（他家ツモで失点、自分は放銃者ではない）
+    ,r.result_type = 'agari'
+        AND r.agari_is_tsumo
+        AND r.agari_winner != rp.player_seat AS is_hi_tsumo
+    ,CASE
+        WHEN r.result_type = 'agari' AND r.agari_is_tsumo AND r.agari_winner != rp.player_seat
+        THEN ABS(sc.score_change)
+    END AS hi_tsumo_ten
+
+    -- 横移動（他家間のロンで自分は無関係）
+    ,r.result_type = 'agari'
+        AND NOT r.agari_is_tsumo
+        AND r.agari_winner != rp.player_seat
+        AND r.agari_from_who != rp.player_seat AS is_yoko_ido
+
     -- リーチ
     ,COALESCE(reach.player IS NOT NULL, FALSE) AS is_reach
     ,COALESCE(reach.is_first_reach, FALSE) AS is_first_reach
@@ -76,6 +121,10 @@ SELECT
         AND r.tenpai_players IS NOT NULL
         AND CAST(rp.player_seat AS STRING) IN UNNEST(SPLIT(r.tenpai_players, ',')) AS is_tenpai
 
+    -- 順位状況（局開始時）
+    ,sr.rank_at_start
+    ,sr.point_diff_to_top
+
     -- 点数変動
     ,sc.score_change
 
@@ -86,3 +135,4 @@ FROM
     LEFT JOIN {{ ref('int_round_naki_flags') }} AS naki ON rp.game_id = naki.game_id AND rp.round_index = naki.round_index AND rp.player_seat = naki.player
     LEFT JOIN {{ ref('int_round_agari_turn') }} AS agt ON rp.game_id = agt.game_id AND rp.round_index = agt.round_index AND rp.player_seat = agt.player
     INNER JOIN score_changes AS sc ON rp.game_id = sc.game_id AND rp.round_index = sc.round_index AND rp.player_seat = sc.seat
+    INNER JOIN starting_ranks AS sr ON rp.game_id = sr.game_id AND rp.round_index = sr.round_index AND rp.player_seat = sr.seat
