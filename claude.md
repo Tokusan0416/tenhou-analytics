@@ -46,10 +46,16 @@ tests/                         # テスト
 - `tenhou_staging`: dbt staging層
 - `tenhou_marts`: dbt分析用テーブル
 
+## GCSバケット
+
+- `tenhou-log-raw`: mjlogファイルの保管先
+
 ## CLI
 
-- `tenhou-load data/` — mjlogファイルをパースしBigQueryにロード（重複自動スキップ）
-- `tenhou-load data/ --dry-run` — パースのみ実行
+- `tenhou-upload data/` — mjlogファイルをGCSにアップロード（既存スキップ）
+- `tenhou-load --source gcs` — GCSからBigQueryにロード（重複自動スキップ）
+- `tenhou-load data/` — ローカルファイルから直接BigQueryにロード
+- `--dry-run` — パースのみ実行
 
 ## パーサーの主要データモデル
 
@@ -76,5 +82,6 @@ tests/                         # テスト
 
 - [x] mjlogパーサー（constants.py, mjlog.py）
 - [x] BigQueryローダー（bq_loader.py, cli.py）
+- [x] GCS連携（gcs_loader.py, tenhou-upload CLI）
 - [ ] dbtプロジェクト
 - [ ] Streamlit可視化

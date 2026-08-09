@@ -6,10 +6,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "google-cloud-bigquery>=3.43.0",
+    "google-cloud-storage>=3.13.1",
 ]
 
 [project.scripts]
-tenhou-load = "tenhou_analytics.cli:main"
+tenhou-upload = "tenhou_analytics.cli:main_upload"
+tenhou-load = "tenhou_analytics.cli:main_load"
 
 [build-system]
 requires = ["hatchling"]

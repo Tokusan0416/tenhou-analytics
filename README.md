@@ -10,7 +10,7 @@
 ## アーキテクチャ
 
 ```
-mjlogファイル → [Python Parser] → BigQuery raw tables → [dbt] → 分析用テーブル → [Streamlit]（将来）
+mjlogファイル → [tenhou-upload] → GCS → [tenhou-load] → BigQuery raw tables → [dbt] → 分析用テーブル
 ```
 
 ### データパイプライン
@@ -85,17 +85,24 @@ for r in game.rounds:
     print(f"局={r.round_number} 本場={r.honba} 結果={type(r.result).__name__}")
 ```
 
+### GCSへのアップロード
+
+```bash
+# mjlogファイルをGCSにアップロード（既存ファイルはスキップ）
+uv run tenhou-upload data/
+```
+
 ### BigQueryへのロード
 
 ```bash
-# 全ファイルをロード（重複は自動スキップ）
+# GCSからロード（推奨）
+uv run tenhou-load --source gcs
+
+# ローカルファイルから直接ロード
 uv run tenhou-load data/
 
 # パースのみ（BigQueryにはロードしない）
-uv run tenhou-load data/ --dry-run
-
-# 個別ファイル指定も可
-uv run tenhou-load data/2026080814gm-0089-0000-fee5c4f5\&tw=0.mjlog
+uv run tenhou-load --source gcs --dry-run
 ```
 
 ### テスト
