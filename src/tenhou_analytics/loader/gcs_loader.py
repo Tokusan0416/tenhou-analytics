@@ -8,7 +8,7 @@ from pathlib import Path
 from google.cloud import storage
 
 from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
-from tenhou_analytics.parser.mjlog import Game, parse_mjlog
+from tenhou_analytics.parser.mjlog import Game, _extract_game_date, parse_mjlog
 
 DEFAULT_BUCKET = "tenhou-log-raw"
 
@@ -72,6 +72,7 @@ def load_from_gcs(
             game = parse_mjlog(tmp.name)
             # ファイル名からmy_seatを復元（tmpだとパスが変わるため）
             game.game_id = _extract_game_id_from_blob(blob_name)
+            game.game_date = _extract_game_date(game.game_id)
             game.my_seat = _extract_my_seat_from_blob(blob_name)
 
         my_player = game.players[game.my_seat]

@@ -8,6 +8,7 @@ WITH
 
 SELECT
     game_id
+    ,game_date
     ,my_seat
     ,is_sanma
     ,is_tonnansen

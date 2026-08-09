@@ -2,6 +2,10 @@
 -- Streamlitでの対局履歴表示や順位推移グラフに使用
 SELECT
     g.game_id
+    ,g.game_date
+    ,g.game_date_jst
+    ,g.game_hour
+    ,g.game_order
     ,g.player_name
     ,g.final_rank
     ,g.final_score

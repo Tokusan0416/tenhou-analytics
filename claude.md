@@ -98,3 +98,4 @@ tests/                         # テスト
 - [ ] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [ ] dbt実行の自動化
 - [ ] dbt schema.yml / テスト整備
+- [ ] テンパイ判定/待ち形/シャンテン数（mahjongライブラリで実装可能、手牌追跡+計算が必要）

@@ -4,6 +4,7 @@ WITH
     games_unpivot AS (
         SELECT
             game_id
+            ,game_date
             ,my_seat
             ,is_sanma
             ,is_tonnansen
@@ -34,12 +35,20 @@ WITH
                 PARTITION BY game_id
                 ORDER BY final_score DESC
             ) AS final_rank
+            ,ROW_NUMBER() OVER (
+                PARTITION BY seat = my_seat
+                ORDER BY game_id
+            ) AS game_order
         FROM
             games_unpivot
     )
 
 SELECT
     game_id
+    ,game_date
+    ,CAST(game_date AS DATE) AS game_date_jst
+    ,EXTRACT(HOUR FROM game_date) AS game_hour
+    ,game_order
     ,seat
     ,player_name
     ,dan

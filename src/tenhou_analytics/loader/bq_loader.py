@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 from google.cloud import bigquery
 
@@ -27,6 +28,7 @@ def _game_to_raw_games_row(game: Game) -> dict:
     """Gameオブジェクトをraw_gamesテーブルの行に変換。"""
     return {
         "game_id": game.game_id,
+        "game_date": game.game_date.isoformat() if game.game_date else None,
         "my_seat": game.my_seat,
         "is_sanma": game.game_type.get("is_sanma", False),
         "is_tonnansen": game.game_type.get("is_tonnansen", False),
@@ -157,6 +159,7 @@ def _get_result_type(result: AgariResult | RyuukyokuResult | None) -> str:
 
 RAW_GAMES_SCHEMA = [
     bigquery.SchemaField("game_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("game_date", "TIMESTAMP"),
     bigquery.SchemaField("my_seat", "INTEGER"),
     bigquery.SchemaField("is_sanma", "BOOLEAN"),
     bigquery.SchemaField("is_tonnansen", "BOOLEAN"),
@@ -279,25 +282,38 @@ def load_game_to_bigquery(
     actions_rows = _game_to_raw_actions_rows(game)
 
     # 重複チェック: 同一game_idが既に存在する場合はスキップ
-    query = f"""
-        SELECT COUNT(*) as cnt
-        FROM `{games_table_id}`
-        WHERE game_id = @game_id
-    """
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("game_id", "STRING", game.game_id),
-        ]
-    )
-    result = client.query(query, job_config=job_config).result()
-    count = list(result)[0].cnt
+    try:
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{games_table_id}`
+            WHERE game_id = @game_id
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("game_id", "STRING", game.game_id),
+            ]
+        )
+        result = client.query(query, job_config=job_config).result()
+        count = list(result)[0].cnt
+    except Exception:
+        count = 0
     if count > 0:
         return {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0}
 
-    # ロード
-    errors_games = client.insert_rows_json(games_table_id, games_rows)
-    errors_rounds = client.insert_rows_json(rounds_table_id, rounds_rows)
-    errors_actions = client.insert_rows_json(actions_table_id, actions_rows)
+    # ロード（テーブル作成直後はStreaming Insertが失敗する場合があるためリトライ）
+    def _insert_with_retry(table_id, rows, max_retries=3):
+        for attempt in range(max_retries):
+            try:
+                return client.insert_rows_json(table_id, rows)
+            except Exception:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                else:
+                    raise
+
+    errors_games = _insert_with_retry(games_table_id, games_rows)
+    errors_rounds = _insert_with_retry(rounds_table_id, rounds_rows)
+    errors_actions = _insert_with_retry(actions_table_id, actions_rows)
 
     all_errors = errors_games + errors_rounds + errors_actions
     if all_errors:

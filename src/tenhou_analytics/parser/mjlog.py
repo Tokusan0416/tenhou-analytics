@@ -8,6 +8,7 @@ from __future__ import annotations
 import gzip
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 from xml.etree import ElementTree as ET
@@ -101,6 +102,7 @@ class Game:
     """対局全体のデータ。"""
 
     game_id: str  # ファイル名から抽出
+    game_date: datetime | None  # 対局日時（ファイル名から抽出、時まで）
     game_type: dict  # ゲーム種別情報
     players: list[PlayerInfo]
     rounds: list[Round]
@@ -161,6 +163,15 @@ def _extract_game_id(filepath: Path) -> str:
     return game_id
 
 
+def _extract_game_date(game_id: str) -> datetime | None:
+    """ゲームIDから対局日時を抽出。YYYYMMDDHHの10桁から日時を取得。"""
+    match = re.match(r"(\d{10})", game_id)
+    if match:
+        date_str = match.group(1)
+        return datetime.strptime(date_str, "%Y%m%d%H")
+    return None
+
+
 def _extract_my_seat(filepath: Path) -> int:
     """ファイル名のtw=パラメータから自分の席番号を取得。"""
     name = filepath.name
@@ -190,6 +201,7 @@ def parse_mjlog(filepath: str | Path) -> Game:
     root = ET.fromstring(xml_str)
 
     game_id = _extract_game_id(filepath)
+    game_date = _extract_game_date(game_id)
     my_seat = _extract_my_seat(filepath)
 
     # ゲーム種別
@@ -279,6 +291,7 @@ def parse_mjlog(filepath: str | Path) -> Game:
 
     return Game(
         game_id=game_id,
+        game_date=game_date,
         game_type=game_type,
         players=players,
         rounds=rounds,
