@@ -151,8 +151,11 @@ def _decode_naki_type(m_value: int) -> str:
     if m_value & 0x0020:
         # 北抜きの可能性もあるが四麻では通常なし
         return "nuki"
-    # それ以外は暗槓または大明槓
-    return "kan"
+    # 暗槓 or 大明槓: kui(下位2bit)が0なら暗槓、1-3なら大明槓
+    kui = m_value & 0x0003
+    if kui == 0:
+        return "ankan"
+    return "daiminkan"
 
 
 def _extract_game_id(filepath: Path) -> str:

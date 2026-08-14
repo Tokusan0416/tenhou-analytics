@@ -1,4 +1,5 @@
 -- 各プレイヤーが各局で副露したかどうかのフラグ
+-- 暗槓(ankan)は門前扱いなので副露にカウントしない
 WITH
     naki_actions AS (
         SELECT
@@ -9,7 +10,7 @@ WITH
         FROM
             {{ ref('stg_actions') }} AS a
         WHERE
-            action_type IN ('chi', 'pon', 'kan', 'kakan')
+            action_type IN ('chi', 'pon', 'daiminkan', 'kakan')
         GROUP BY
             game_id
             ,round_index
