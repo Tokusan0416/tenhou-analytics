@@ -9,6 +9,7 @@ from charts import (
     grouped_bar_chart,
     render_agari_context_table,
     render_agari_type_chart,
+    render_cross_analysis_heatmap,
     render_cumulative_point_chart,
     render_kpi_metrics,
     render_opponents_situation_chart,
@@ -33,6 +34,8 @@ from data import (
     load_yaku_detail,
     process_yaku_data,
 )
+
+SEAT_LABELS = {0: "東家(起家)", 1: "南家", 2: "西家", 3: "北家"}
 
 
 def main():
@@ -90,8 +93,8 @@ def main():
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)
 
     # ===== タブ =====
-    tab_overview, tab_context, tab_trend, tab_wind, tab_dealer, tab_round, tab_rank, tab_history = st.tabs(
-        ["総合", "状況別分析", "推移", "東場/南場", "親/子", "局別", "順位状況別", "対局履歴"]
+    tab_overview, tab_context, tab_trend, tab_wind, tab_dealer, tab_seat, tab_round, tab_rank, tab_naki, tab_history = st.tabs(
+        ["総合", "状況別分析", "推移", "東場/南場", "親/子", "起家別", "局別", "順位状況別", "副露回数別", "対局履歴"]
     )
 
     # --- 総合タブ ---
@@ -176,7 +179,6 @@ def main():
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
 
-        # アガリ種別テーブル
         agari_data = rounds[rounds["is_agari"]].copy()
         if not agari_data.empty and "agari_type" in agari_data.columns:
             type_rows = []
@@ -185,8 +187,7 @@ def main():
                 if subset.empty:
                     continue
                 type_rows.append({
-                    "種別": at,
-                    "回数": len(subset),
+                    "種別": at, "回数": len(subset),
                     "割合": f"{len(subset) / len(agari_data) * 100:.2f}%",
                     "平均打点": f"{int(subset['agari_ten'].mean()):,}",
                     "最高打点": f"{int(subset['agari_ten'].max()):,}",
@@ -199,17 +200,41 @@ def main():
 
         # 他家状況別
         st.subheader("他家状況別")
-        col_opp_reach, col_opp_naki = st.columns(2)
-        with col_opp_reach:
+        col_opp_r, col_opp_n = st.columns(2)
+        with col_opp_r:
             st.caption("他家リーチ数別")
             fig = render_opponents_situation_chart(rounds)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
-        with col_opp_naki:
+        with col_opp_n:
             st.caption("他家副露数別")
             fig = render_opponents_situation_chart(rounds, col="opponents_naki_count", label="他家副露")
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # クロス分析
+        st.subheader("クロス分析")
+        col_axis1, col_axis2, col_metric = st.columns(3)
+        with col_axis1:
+            row_axis = st.selectbox("行軸（自分の状況）", [
+                "ALL", "親/子", "リーチ/ダマ/副露", "副露回数",
+            ])
+        with col_axis2:
+            col_axis = st.selectbox("列軸（他家の状況）", [
+                "ALL", "他家リーチ数", "他家副露数",
+            ])
+        with col_metric:
+            metric = st.selectbox("指標", [
+                "アガリ率", "放銃率", "局収支", "アガリ打点",
+            ])
+
+        fig, cross_df = render_cross_analysis_heatmap(rounds, row_axis, col_axis, metric)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        if cross_df is not None:
+            st.dataframe(cross_df, use_container_width=True, hide_index=True)
 
         st.divider()
 
@@ -261,6 +286,24 @@ def main():
             colors=[COLORS["positive"], COLORS["primary"]])
         st.plotly_chart(fig, use_container_width=True)
 
+    # --- 起家別タブ ---
+    with tab_seat:
+        rs = rounds.copy()
+        rs["seat_label"] = rs["player_seat"].map(SEAT_LABELS)
+        # 対局成績をseat別に集計するためgamesにもseat情報を付与
+        fg_seat = filtered_games.copy()
+        if "seat" in fg_seat.columns:
+            fg_seat["player_seat"] = fg_seat["seat"]
+        st.subheader("起家別（東南西北）スタッツ比較")
+        st.dataframe(grouped_stats_table(rs, "player_seat",
+            games=fg_seat if "player_seat" in fg_seat.columns else None,
+            label_fn=lambda x: SEAT_LABELS.get(x, str(x))),
+            use_container_width=True, hide_index=True)
+        fig = grouped_bar_chart(rs, "player_seat",
+            ["agari_rate", "houjuu_rate", "reach_rate", "naki_rate"],
+            label_fn=lambda x: SEAT_LABELS.get(x, str(x)), colors=RANK_COLORS)
+        st.plotly_chart(fig, use_container_width=True)
+
     # --- 局別タブ ---
     with tab_round:
         st.subheader("局別スタッツ比較")
@@ -283,22 +326,41 @@ def main():
             label_fn=lambda x: f"{int(x)}位", colors=RANK_COLORS)
         st.plotly_chart(fig, use_container_width=True)
 
+    # --- 副露回数別タブ ---
+    with tab_naki:
+        rn = rounds.copy()
+        rn["naki_group"] = rn["naki_count"].clip(upper=3).apply(lambda x: f"{x}回" if x < 3 else "3回以上")
+        st.subheader("副露回数別スタッツ比較")
+        st.dataframe(grouped_stats_table(rn, "naki_group"), use_container_width=True, hide_index=True)
+        fig = grouped_bar_chart(rn, "naki_group",
+            ["agari_rate", "houjuu_rate", "hi_tsumo_rate"],
+            colors=[COLORS["neutral"], COLORS["primary"], COLORS["secondary"], COLORS["negative"]])
+        st.plotly_chart(fig, use_container_width=True)
+
     # --- 対局履歴タブ ---
     with tab_history:
         st.subheader("累積ポイント推移")
         st.plotly_chart(render_cumulative_point_chart(filtered_games), use_container_width=True)
 
         st.subheader("対局結果一覧")
-        display_cols = ["game_id", "game_date_jst", "dan", "rate",
-            "final_rank", "final_point", "num_rounds",
+        display_cols = ["game_date_jst", "seat", "dan", "rate",
+            "final_rank", "final_score", "final_point",
+            "agari_count", "houjuu_count", "reach_count", "naki_count",
+            "num_rounds",
             "opponent1_name", "opponent2_name", "opponent3_name", "cumulative_point"]
         available = [c for c in display_cols if c in filtered_games.columns]
-        ddf = filtered_games[available].rename(columns={
-            "game_id": "対局ID", "game_date_jst": "日付",
+        ddf = filtered_games[available].copy()
+        if "seat" in ddf.columns:
+            ddf["seat"] = ddf["seat"].map(SEAT_LABELS)
+        ddf = ddf.rename(columns={
+            "game_date_jst": "日付", "seat": "席",
             "dan": "段位", "rate": "R",
-            "final_rank": "順位", "final_point": "ポイント", "num_rounds": "局数",
+            "final_rank": "順位", "final_score": "最終点数", "final_point": "ポイント",
+            "agari_count": "アガリ", "houjuu_count": "放銃",
+            "reach_count": "立直", "naki_count": "副露",
+            "num_rounds": "局数",
             "opponent1_name": "対戦者1", "opponent2_name": "対戦者2",
-            "opponent3_name": "対戦者3", "cumulative_point": "累積ポイント"})
+            "opponent3_name": "対戦者3", "cumulative_point": "累積pt"})
         st.dataframe(ddf, use_container_width=True, hide_index=True)
 
 

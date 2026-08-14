@@ -402,6 +402,93 @@ def render_opponents_situation_chart(rounds: pd.DataFrame, col: str = "opponents
     return fig
 
 
+def render_cross_analysis_heatmap(rounds: pd.DataFrame, row_axis: str, col_axis: str, metric: str):
+    """自分の状況 × 他家の状況のクロス分析ヒートマップ。"""
+    df = rounds.copy()
+
+    # 行軸のグルーピング
+    if row_axis == "ALL":
+        df["row_group"] = "全体"
+    elif row_axis == "親/子":
+        df["row_group"] = df["is_dealer"].apply(lambda x: "親" if x else "子")
+    elif row_axis == "リーチ/ダマ/副露":
+        df["row_group"] = df.apply(
+            lambda r: "リーチ" if r["is_reach"] else "副露" if r["is_naki"] else "ダマ", axis=1)
+    elif row_axis == "副露回数":
+        df["row_group"] = df["naki_count"].clip(upper=3).apply(lambda x: f"{x}回" if x < 3 else "3回以上")
+
+    # 列軸のグルーピング
+    if col_axis == "ALL":
+        df["col_group"] = "全体"
+    elif col_axis == "他家リーチ数":
+        df["col_group"] = df["opponents_reach_count"].clip(upper=2).apply(lambda x: f"{x}人" if x < 2 else "2人以上")
+    elif col_axis == "他家副露数":
+        df["col_group"] = df["opponents_naki_count"].clip(upper=3).apply(lambda x: f"{x}人" if x < 3 else "3人")
+
+    # 指標の計算
+    metric_fn = {
+        "アガリ率": lambda s: s["is_agari"].mean() * 100 if len(s) > 0 else None,
+        "放銃率": lambda s: s["is_houjuu"].mean() * 100 if len(s) > 0 else None,
+        "局収支": lambda s: s["score_change"].mean() if len(s) > 0 else None,
+        "アガリ打点": lambda s: s.loc[s["is_agari"], "agari_ten"].mean() if s["is_agari"].any() else None,
+    }
+    fn = metric_fn.get(metric)
+    if fn is None:
+        return None, None
+
+    rows_order = sorted(df["row_group"].unique())
+    cols_order = sorted(df["col_group"].unique())
+
+    # ピボット計算
+    data = {}
+    count_data = {}
+    for rg in rows_order:
+        data[rg] = {}
+        count_data[rg] = {}
+        for cg in cols_order:
+            subset = df[(df["row_group"] == rg) & (df["col_group"] == cg)]
+            val = fn(subset) if len(subset) >= 3 else None
+            data[rg][cg] = val
+            count_data[rg][cg] = len(subset)
+
+    z = [[data[rg].get(cg) for cg in cols_order] for rg in rows_order]
+    counts = [[count_data[rg].get(cg) for cg in cols_order] for rg in rows_order]
+
+    # テキスト表示
+    fmt = ".2f" if metric in ("アガリ率", "放銃率") else "+.1f" if metric == "局収支" else ",.0f"
+    suffix = "%" if metric in ("アガリ率", "放銃率") else ""
+    text = [[f"{v:{fmt}}{suffix}<br>({c}局)" if v is not None else f"-<br>({c}局)"
+             for v, c in zip(row_z, row_c)] for row_z, row_c in zip(z, counts)]
+
+    fig = go.Figure(data=go.Heatmap(
+        z=z, x=cols_order, y=rows_order,
+        colorscale=[[0, COLORS["negative"]], [0.5, "#ffffff"], [1, COLORS["positive"]]],
+        zmid=0 if metric == "局収支" else None,
+        text=text, texttemplate="%{text}", textfont=dict(size=12),
+        hovertemplate=f"{row_axis}: %{{y}}<br>{col_axis}: %{{x}}<br>{metric}: %{{z}}<extra></extra>",
+    ))
+    fig.update_layout(
+        xaxis_title=col_axis, yaxis_title=row_axis,
+        height=max(250, len(rows_order) * 60 + 100),
+        margin=dict(t=30, b=50),
+    )
+
+    # テーブルも作成
+    table_rows = []
+    for rg in rows_order:
+        row = {row_axis: rg}
+        for cg in cols_order:
+            val = data[rg][cg]
+            c = count_data[rg][cg]
+            if val is not None:
+                row[f"{cg} ({c}局)"] = f"{val:{fmt}}{suffix}"
+            else:
+                row[f"{cg} ({c}局)"] = "-"
+        table_rows.append(row)
+
+    return fig, pd.DataFrame(table_rows)
+
+
 def grouped_bar_chart(df, group_col, metrics, label_fn=None, colors=None):
     fig = go.Figure()
     groups = sorted(df[group_col].unique())

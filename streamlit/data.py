@@ -173,8 +173,11 @@ def grouped_stats_table(df: pd.DataFrame, group_col: str,
         label = label_fn(val) if label_fn else str(val)
         gs = None
         if games is not None:
-            game_ids = subset["game_id"].unique()
-            gs = calc_game_stats(games[games["game_id"].isin(game_ids)])
+            if group_col in games.columns:
+                gs = calc_game_stats(games[games[group_col] == val])
+            else:
+                game_ids = subset["game_id"].unique()
+                gs = calc_game_stats(games[games["game_id"].isin(game_ids)])
         rows.append(stats_to_row(label, s, gs))
     return pd.DataFrame(rows)
 
