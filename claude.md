@@ -20,7 +20,7 @@
 src/tenhou_analytics/parser/   # mjlogパーサー（gzip XML → 構造化データ）
 src/tenhou_analytics/loader/   # BigQueryローダー
 dbt/                           # dbtプロジェクト（staging/intermediate/warehouse/marts）
-streamlit/                     # 可視化（将来）
+apps/mahjong-dashboard/        # Streamlitダッシュボード
 data/                          # mjlogファイル（git管理外）
 tests/                         # テスト
 ```
@@ -98,7 +98,7 @@ tests/                         # テスト
 - [x] GCS連携（gcs_loader.py, tenhou-upload CLI）
 - [x] dbtプロジェクト（staging/intermediate/warehouse）
 - [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
-- [x] Streamlitアプリ（ローカル）— streamlit/app.py
+- [x] Streamlitアプリ（ローカル）— apps/mahjong-dashboard/
 - [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
 - [ ] Docker化
 - [ ] Cloud Runデプロイ（手動）

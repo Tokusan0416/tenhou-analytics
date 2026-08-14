@@ -1,0 +1,6 @@
+streamlit>=1.61
+plotly>=7.0
+google-cloud-bigquery>=3.20
+pandas>=2.0
+pyarrow>=14.0
+db-dtypes>=1.0

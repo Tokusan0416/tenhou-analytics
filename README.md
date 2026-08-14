@@ -52,7 +52,8 @@ tenhou-analytics/
 │       ├── staging/             # rawテーブルの型変換・リネーム
 │       ├── intermediate/        # 局単位・巡目単位の中間テーブル
 │       └── marts/               # 分析用の最終テーブル
-├── streamlit/                   # 可視化（将来）
+├── apps/                        # Webアプリ
+│   └── mahjong-dashboard/       # Streamlitダッシュボード
 └── tests/
 ```
 
@@ -118,7 +119,7 @@ cd dbt && uv run --group dbt dbt run --profiles-dir . --full-refresh && cd ..
 ### Streamlitダッシュボード
 
 ```bash
-uv run streamlit run streamlit/app.py
+uv run streamlit run apps/mahjong-dashboard/app.py
 ```
 
 ### テスト
