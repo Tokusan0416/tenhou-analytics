@@ -3,7 +3,6 @@
 data/ディレクトリの実ファイルを使ったテスト。
 """
 
-import os
 from pathlib import Path
 
 import pytest

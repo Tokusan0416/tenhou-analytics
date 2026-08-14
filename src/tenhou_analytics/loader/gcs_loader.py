@@ -8,7 +8,7 @@ from pathlib import Path
 from google.cloud import storage
 
 from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
-from tenhou_analytics.parser.mjlog import Game, _extract_game_date, parse_mjlog
+from tenhou_analytics.parser.mjlog import _extract_game_date, parse_mjlog
 
 DEFAULT_BUCKET = "tenhou-log-raw"
 

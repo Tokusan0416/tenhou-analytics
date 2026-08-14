@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import gzip
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
@@ -132,11 +132,13 @@ def _parse_yaku(yaku_csv: str) -> list[Yaku]:
     for i in range(0, len(values), 2):
         yaku_id = values[i]
         han = values[i + 1]
-        result.append(Yaku(
-            id=yaku_id,
-            name=YAKU_NAMES.get(yaku_id, f"不明({yaku_id})"),
-            han=han,
-        ))
+        result.append(
+            Yaku(
+                id=yaku_id,
+                name=YAKU_NAMES.get(yaku_id, f"不明({yaku_id})"),
+                han=han,
+            )
+        )
     return result
 
 
@@ -171,7 +173,7 @@ def _extract_game_date(game_id: str) -> datetime | None:
     match = re.match(r"(\d{10})", game_id)
     if match:
         date_str = match.group(1)
-        return datetime.strptime(date_str, "%Y%m%d%H")
+        return datetime.strptime(date_str, "%Y%m%d%H")  # noqa: DTZ007
     return None
 
 
@@ -209,7 +211,9 @@ def parse_mjlog(filepath: str | Path) -> Game:
 
     # ゲーム種別
     go_elem = root.find("GO")
-    game_type = parse_game_type(int(go_elem.get("type", "0"))) if go_elem is not None else {}
+    game_type = (
+        parse_game_type(int(go_elem.get("type", "0"))) if go_elem is not None else {}
+    )
 
     # プレイヤー情報
     un_elem = root.find("UN")
@@ -234,26 +238,38 @@ def parse_mjlog(filepath: str | Path) -> Game:
         for player, draw_tag in DRAW_TAGS.items():
             if tag.startswith(draw_tag) and tag[1:].isdigit():
                 tile_id = int(tag[1:])
-                turn = sum(1 for a in current_round.actions if a.type == "draw" and a.player == player)
-                current_round.actions.append(Action(
-                    type="draw",
-                    player=player,
-                    tile=tile_id_to_name(tile_id),
-                    turn=turn,
-                ))
+                turn = sum(
+                    1
+                    for a in current_round.actions
+                    if a.type == "draw" and a.player == player
+                )
+                current_round.actions.append(
+                    Action(
+                        type="draw",
+                        player=player,
+                        tile=tile_id_to_name(tile_id),
+                        turn=turn,
+                    )
+                )
                 break
 
         # 打牌（D0-D135, E0-E135, F0-F135, G0-G135）
         for player, discard_tag in DISCARD_TAGS.items():
             if tag.startswith(discard_tag) and tag[1:].isdigit():
                 tile_id = int(tag[1:])
-                turn = sum(1 for a in current_round.actions if a.type == "discard" and a.player == player)
-                current_round.actions.append(Action(
-                    type="discard",
-                    player=player,
-                    tile=tile_id_to_name(tile_id),
-                    turn=turn,
-                ))
+                turn = sum(
+                    1
+                    for a in current_round.actions
+                    if a.type == "discard" and a.player == player
+                )
+                current_round.actions.append(
+                    Action(
+                        type="discard",
+                        player=player,
+                        tile=tile_id_to_name(tile_id),
+                        turn=turn,
+                    )
+                )
                 break
 
         # 鳴き
@@ -261,12 +277,14 @@ def parse_mjlog(filepath: str | Path) -> Game:
             who = int(elem.get("who", "0"))
             m_value = int(elem.get("m", "0"))
             naki_type = _decode_naki_type(m_value)
-            current_round.actions.append(Action(
-                type=naki_type,
-                player=who,
-                tile=None,
-                turn=0,
-            ))
+            current_round.actions.append(
+                Action(
+                    type=naki_type,
+                    player=who,
+                    tile=None,
+                    turn=0,
+                )
+            )
 
         # リーチ
         if tag == "REACH":
@@ -274,12 +292,14 @@ def parse_mjlog(filepath: str | Path) -> Game:
             who = int(elem.get("who", "0"))
             if step == 1:
                 current_round.reach_players.append(who)
-                current_round.actions.append(Action(
-                    type="reach",
-                    player=who,
-                    tile=None,
-                    turn=0,
-                ))
+                current_round.actions.append(
+                    Action(
+                        type="reach",
+                        player=who,
+                        tile=None,
+                        turn=0,
+                    )
+                )
 
         # 和了
         if tag == "AGARI":
@@ -317,13 +337,15 @@ def _parse_players(un_elem: ET.Element | None) -> list[PlayerInfo]:
     for i in range(4):
         name_encoded = un_elem.get(f"n{i}", "")
         name = unquote(name_encoded)
-        players.append(PlayerInfo(
-            seat=i,
-            name=name,
-            dan=dans[i] if i < len(dans) else 0,
-            rate=rates[i] if i < len(rates) else 0.0,
-            sex=sexes[i] if i < len(sexes) else "",
-        ))
+        players.append(
+            PlayerInfo(
+                seat=i,
+                name=name,
+                dan=dans[i] if i < len(dans) else 0,
+                rate=rates[i] if i < len(rates) else 0.0,
+                sex=sexes[i] if i < len(sexes) else "",
+            )
+        )
 
     return players
 

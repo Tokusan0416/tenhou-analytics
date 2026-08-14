@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: invertible-vine-477701-j8
+  GCP_PROJECT_NUMBER: "931431065307"
+  GCP_REGION: asia-northeast1
+  WIF_PROVIDER: projects/931431065307/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SA_EMAIL: github-actions@invertible-vine-477701-j8.iam.gserviceaccount.com
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --group dbt
+
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/
+
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+
+      - name: Pytest
+        run: uv run pytest -v
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SA_EMAIL }}
+
+      - name: dbt deps
+        run: cd dbt && uv run --group dbt dbt deps --profiles-dir .
+
+      - name: dbt compile
+        run: cd dbt && uv run --group dbt dbt compile --profiles-dir .
+        env:
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+
+      - name: dbt test
+        run: cd dbt && uv run --group dbt dbt test --profiles-dir .
+        env:
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
