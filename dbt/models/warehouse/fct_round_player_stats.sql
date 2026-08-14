@@ -74,7 +74,7 @@ SELECT
     ,rp.result_type
 
     -- アガリ
-    ,r.agari_winner = rp.player_seat AS is_agari
+    ,COALESCE(r.agari_winner = rp.player_seat, FALSE) AS is_agari
     ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_is_tsumo END AS is_tsumo
     ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_ten END AS agari_ten
     ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_han END AS agari_han
@@ -88,25 +88,25 @@ SELECT
     ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_aka_dora_count END AS aka_dora_count
 
     -- 放銃
-    ,r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat AS is_houjuu
+    ,COALESCE(r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat, FALSE) AS is_houjuu
     ,CASE
         WHEN r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat THEN r.agari_ten
     END AS houjuu_ten
 
     -- 被ツモ（他家ツモで失点、自分は放銃者ではない）
-    ,r.result_type = 'agari'
+    ,COALESCE(r.result_type = 'agari'
         AND r.agari_is_tsumo
-        AND r.agari_winner != rp.player_seat AS is_hi_tsumo
+        AND r.agari_winner != rp.player_seat, FALSE) AS is_hi_tsumo
     ,CASE
         WHEN r.result_type = 'agari' AND r.agari_is_tsumo AND r.agari_winner != rp.player_seat
         THEN ABS(sc.score_change)
     END AS hi_tsumo_ten
 
     -- 横移動（他家間のロンで自分は無関係）
-    ,r.result_type = 'agari'
+    ,COALESCE(r.result_type = 'agari'
         AND NOT r.agari_is_tsumo
         AND r.agari_winner != rp.player_seat
-        AND r.agari_from_who != rp.player_seat AS is_yoko_ido
+        AND r.agari_from_who != rp.player_seat, FALSE) AS is_yoko_ido
 
     -- リーチ
     ,COALESCE(reach.player IS NOT NULL, FALSE) AS is_reach
