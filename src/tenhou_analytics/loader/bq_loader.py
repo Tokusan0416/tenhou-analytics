@@ -71,10 +71,18 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
             "riichi_sticks": r.riichi_sticks,
             "dora_indicator": r.dora_indicator,
             "dealer": r.dealer,
-            "starting_score0": r.starting_scores[0] if len(r.starting_scores) > 0 else 0,
-            "starting_score1": r.starting_scores[1] if len(r.starting_scores) > 1 else 0,
-            "starting_score2": r.starting_scores[2] if len(r.starting_scores) > 2 else 0,
-            "starting_score3": r.starting_scores[3] if len(r.starting_scores) > 3 else 0,
+            "starting_score0": r.starting_scores[0]
+            if len(r.starting_scores) > 0
+            else 0,
+            "starting_score1": r.starting_scores[1]
+            if len(r.starting_scores) > 1
+            else 0,
+            "starting_score2": r.starting_scores[2]
+            if len(r.starting_scores) > 2
+            else 0,
+            "starting_score3": r.starting_scores[3]
+            if len(r.starting_scores) > 3
+            else 0,
             "hand0": ",".join(r.hands.get(0, [])),
             "hand1": ",".join(r.hands.get(1, [])),
             "hand2": ",".join(r.hands.get(2, [])),
@@ -84,49 +92,73 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
         }
 
         if isinstance(r.result, AgariResult):
-            row.update({
-                "agari_winner": r.result.winner,
-                "agari_from_who": r.result.from_who,
-                "agari_is_tsumo": r.result.is_tsumo,
-                "agari_ten": r.result.ten,
-                "agari_fu": r.result.fu,
-                "agari_han": r.result.han,
-                "agari_yaku": ",".join(f"{y.name}:{y.han}" for y in r.result.yaku),
-                "agari_winning_tile": r.result.winning_tile,
-                "agari_dora": ",".join(r.result.dora),
-                "agari_ura_dora": ",".join(r.result.ura_dora),
-                "agari_dora_count": sum(y.han for y in r.result.yaku if y.id == 52),
-                "agari_ura_dora_count": sum(y.han for y in r.result.yaku if y.id == 53),
-                "agari_aka_dora_count": sum(y.han for y in r.result.yaku if y.id == 54),
-                "score_change0": r.result.score_changes[0] if len(r.result.score_changes) > 0 else 0,
-                "score_change1": r.result.score_changes[1] if len(r.result.score_changes) > 1 else 0,
-                "score_change2": r.result.score_changes[2] if len(r.result.score_changes) > 2 else 0,
-                "score_change3": r.result.score_changes[3] if len(r.result.score_changes) > 3 else 0,
-                "ryuukyoku_reason": None,
-                "tenpai_players": None,
-            })
+            row.update(
+                {
+                    "agari_winner": r.result.winner,
+                    "agari_from_who": r.result.from_who,
+                    "agari_is_tsumo": r.result.is_tsumo,
+                    "agari_ten": r.result.ten,
+                    "agari_fu": r.result.fu,
+                    "agari_han": r.result.han,
+                    "agari_yaku": ",".join(f"{y.name}:{y.han}" for y in r.result.yaku),
+                    "agari_winning_tile": r.result.winning_tile,
+                    "agari_dora": ",".join(r.result.dora),
+                    "agari_ura_dora": ",".join(r.result.ura_dora),
+                    "agari_dora_count": sum(y.han for y in r.result.yaku if y.id == 52),
+                    "agari_ura_dora_count": sum(
+                        y.han for y in r.result.yaku if y.id == 53
+                    ),
+                    "agari_aka_dora_count": sum(
+                        y.han for y in r.result.yaku if y.id == 54
+                    ),
+                    "score_change0": r.result.score_changes[0]
+                    if len(r.result.score_changes) > 0
+                    else 0,
+                    "score_change1": r.result.score_changes[1]
+                    if len(r.result.score_changes) > 1
+                    else 0,
+                    "score_change2": r.result.score_changes[2]
+                    if len(r.result.score_changes) > 2
+                    else 0,
+                    "score_change3": r.result.score_changes[3]
+                    if len(r.result.score_changes) > 3
+                    else 0,
+                    "ryuukyoku_reason": None,
+                    "tenpai_players": None,
+                }
+            )
         elif isinstance(r.result, RyuukyokuResult):
-            row.update({
-                "agari_winner": None,
-                "agari_from_who": None,
-                "agari_is_tsumo": None,
-                "agari_ten": None,
-                "agari_fu": None,
-                "agari_han": None,
-                "agari_yaku": None,
-                "agari_winning_tile": None,
-                "agari_dora": None,
-                "agari_ura_dora": None,
-                "agari_dora_count": None,
-                "agari_ura_dora_count": None,
-                "agari_aka_dora_count": None,
-                "score_change0": r.result.score_changes[0] if len(r.result.score_changes) > 0 else 0,
-                "score_change1": r.result.score_changes[1] if len(r.result.score_changes) > 1 else 0,
-                "score_change2": r.result.score_changes[2] if len(r.result.score_changes) > 2 else 0,
-                "score_change3": r.result.score_changes[3] if len(r.result.score_changes) > 3 else 0,
-                "ryuukyoku_reason": r.result.reason,
-                "tenpai_players": ",".join(str(p) for p in r.result.tenpai_players),
-            })
+            row.update(
+                {
+                    "agari_winner": None,
+                    "agari_from_who": None,
+                    "agari_is_tsumo": None,
+                    "agari_ten": None,
+                    "agari_fu": None,
+                    "agari_han": None,
+                    "agari_yaku": None,
+                    "agari_winning_tile": None,
+                    "agari_dora": None,
+                    "agari_ura_dora": None,
+                    "agari_dora_count": None,
+                    "agari_ura_dora_count": None,
+                    "agari_aka_dora_count": None,
+                    "score_change0": r.result.score_changes[0]
+                    if len(r.result.score_changes) > 0
+                    else 0,
+                    "score_change1": r.result.score_changes[1]
+                    if len(r.result.score_changes) > 1
+                    else 0,
+                    "score_change2": r.result.score_changes[2]
+                    if len(r.result.score_changes) > 2
+                    else 0,
+                    "score_change3": r.result.score_changes[3]
+                    if len(r.result.score_changes) > 3
+                    else 0,
+                    "ryuukyoku_reason": r.result.reason,
+                    "tenpai_players": ",".join(str(p) for p in r.result.tenpai_players),
+                }
+            )
 
         rows.append(row)
     return rows
@@ -137,15 +169,17 @@ def _game_to_raw_actions_rows(game: Game) -> list[dict]:
     rows = []
     for round_idx, r in enumerate(game.rounds):
         for action_idx, a in enumerate(r.actions):
-            rows.append({
-                "game_id": game.game_id,
-                "round_index": round_idx,
-                "action_index": action_idx,
-                "action_type": a.type,
-                "player": a.player,
-                "tile": a.tile,
-                "turn": a.turn,
-            })
+            rows.append(
+                {
+                    "game_id": game.game_id,
+                    "round_index": round_idx,
+                    "action_index": action_idx,
+                    "action_type": a.type,
+                    "player": a.player,
+                    "tile": a.tile,
+                    "turn": a.turn,
+                }
+            )
     return rows
 
 
@@ -294,8 +328,8 @@ def load_game_to_bigquery(
             ]
         )
         result = client.query(query, job_config=job_config).result()
-        count = list(result)[0].cnt
-    except Exception:
+        count = next(iter(result)).cnt
+    except (Exception, StopIteration):  # noqa: BLE001
         count = 0
     if count > 0:
         return {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0}

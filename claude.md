@@ -91,6 +91,17 @@ tests/                         # テスト
 - dbtモデルの追加・編集時は必ず対応する `_model_name.yml` のメタデータ（description, テスト）も更新すること
 - `persist_docs` 有効のため、dbt run時にBigQueryのテーブル/カラム説明に自動反映される
 
+### ブランチ運用
+
+- mainへの直接pushは禁止。必ず **feature/xxx ブランチを作成しPR経由でマージ** する
+- CIが通ったことを確認してからセルフマージ
+- Claude Codeでの作業時も同様：
+  1. `git checkout -b feature/xxx` でブランチ作成
+  2. 作業・コミット
+  3. `git push -u origin feature/xxx` でpush
+  4. `gh pr create` でPR作成
+  5. CI通過を確認後、マージ
+
 ## 現在の開発状況
 
 - [x] mjlogパーサー（constants.py, mjlog.py）

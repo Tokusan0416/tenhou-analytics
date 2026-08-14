@@ -3,13 +3,43 @@
 # 牌種名（0-33）: ID // 4 で牌種インデックスに変換
 TILE_TYPES: list[str] = [
     # 萬子 0-8
-    "1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m",
+    "1m",
+    "2m",
+    "3m",
+    "4m",
+    "5m",
+    "6m",
+    "7m",
+    "8m",
+    "9m",
     # 筒子 9-17
-    "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p",
+    "1p",
+    "2p",
+    "3p",
+    "4p",
+    "5p",
+    "6p",
+    "7p",
+    "8p",
+    "9p",
     # 索子 18-26
-    "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s",
+    "1s",
+    "2s",
+    "3s",
+    "4s",
+    "5s",
+    "6s",
+    "7s",
+    "8s",
+    "9s",
     # 字牌 27-33
-    "東", "南", "西", "北", "白", "發", "中",
+    "東",
+    "南",
+    "西",
+    "北",
+    "白",
+    "發",
+    "中",
 ]
 
 # 赤ドラの牌ID（各スーツの5の1枚目: ID=16,52,88）
@@ -87,16 +117,16 @@ YAKU_NAMES: dict[int, str] = {
 
 # GO type ビットフラグ解析
 GAME_TYPE_FLAGS: dict[str, int] = {
-    "sanma": 0x10,          # 三人麻雀
-    "tokutou": 0x00,        # 特東(東風戦) - デフォルト
-    "tonnansen": 0x08,      # 東南戦
-    "ippan": 0x00,          # 一般 - デフォルト
-    "joukyuu": 0x01,        # 上級卓
-    "tokujou": 0x02,        # 特上卓
-    "houou": 0x04,          # 鳳凰卓
-    "soku": 0x40,           # 速
-    "no_red": 0x02,         # 赤なし(三麻時)
-    "no_aka": 0x20,         # 赤なし(四麻時)
+    "sanma": 0x10,  # 三人麻雀
+    "tokutou": 0x00,  # 特東(東風戦) - デフォルト
+    "tonnansen": 0x08,  # 東南戦
+    "ippan": 0x00,  # 一般 - デフォルト
+    "joukyuu": 0x01,  # 上級卓
+    "tokujou": 0x02,  # 特上卓
+    "houou": 0x04,  # 鳳凰卓
+    "soku": 0x40,  # 速
+    "no_red": 0x02,  # 赤なし(三麻時)
+    "no_aka": 0x20,  # 赤なし(四麻時)
 }
 
 
@@ -107,7 +137,11 @@ def parse_game_type(type_value: int) -> dict[str, str | bool]:
         "is_tonnansen": bool(type_value & 0x08),
         "is_soku": bool(type_value & 0x40),
         "is_no_red": bool(type_value & 0x20),
-        "lobby": "鳳凰卓" if type_value & 0x04 else
-                 "特上卓" if type_value & 0x02 else
-                 "上級卓" if type_value & 0x01 else "一般",
+        "lobby": "鳳凰卓"
+        if type_value & 0x04
+        else "特上卓"
+        if type_value & 0x02
+        else "上級卓"
+        if type_value & 0x01
+        else "一般",
     }

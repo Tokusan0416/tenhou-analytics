@@ -120,8 +120,10 @@ def _load_from_local(args: argparse.Namespace) -> None:
     for filepath in files:
         game = parse_mjlog(filepath)
         my_player = game.players[game.my_seat]
-        print(f"  {filepath.name}: {my_player.name} (seat {game.my_seat}), "
-              f"{len(game.rounds)} rounds, {game.final_points[game.my_seat]:+.1f}pt")
+        print(
+            f"  {filepath.name}: {my_player.name} (seat {game.my_seat}), "
+            f"{len(game.rounds)} rounds, {game.final_points[game.my_seat]:+.1f}pt"
+        )
 
         if not args.dry_run:
             result = load_game_to_bigquery(
@@ -132,7 +134,7 @@ def _load_from_local(args: argparse.Namespace) -> None:
             if result["raw_games"] > 0:
                 print(f"    -> Loaded: {result}")
             else:
-                print(f"    -> Skipped (already exists)")
+                print("    -> Skipped (already exists)")
 
     print("Done.")
 
@@ -154,8 +156,10 @@ def _load_from_gcs(args: argparse.Namespace) -> None:
 
     for r in results:
         status = r["status"]
-        print(f"  {r['file']}: {r['player']}, "
-              f"{r['rounds']} rounds, {r['point']:+.1f}pt -> {status}")
+        print(
+            f"  {r['file']}: {r['player']}, "
+            f"{r['rounds']} rounds, {r['point']:+.1f}pt -> {status}"
+        )
 
     loaded = sum(1 for r in results if r["status"] == "loaded")
     skipped = sum(1 for r in results if r["status"] == "skipped")
