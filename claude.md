@@ -100,7 +100,7 @@ tests/                         # テスト
 - [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
 - [x] Streamlitアプリ（ローカル）— apps/mahjong-dashboard/
 - [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
-- [ ] Docker化
+- [x] Docker化
 - [ ] Cloud Runデプロイ（手動）
 - [ ] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [ ] dbt実行の自動化
