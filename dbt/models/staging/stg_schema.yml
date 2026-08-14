@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: stg_games
+    description: "対局メタ情報のステージング（raw_gamesの1:1変換）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null, unique]
+      - name: game_date
+        description: "対局日時（時まで）"
+      - name: my_seat
+        description: "自分の席番号（0-3）"
+      - name: is_tonnansen
+        description: "東南戦フラグ"
+      - name: lobby
+        description: "卓の種別（一般/上級/特上/鳳凰）"
+      - name: num_rounds
+        description: "対局内の局数"
+
+  - name: stg_rounds
+    description: "局情報のステージング（raw_roundsの1:1変換）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null]
+      - name: round_index
+        description: "局のインデックス（0始まり）"
+        tests: [not_null]
+      - name: round_number
+        description: "局番号（0=東1局〜7=南4局、8以降=西場）"
+      - name: result_type
+        description: "局の結果種別"
+        tests:
+          - accepted_values:
+              values: ['agari', 'ryuukyoku']
+      - name: agari_yaku
+        description: "アガリ時の役一覧（役名:翻数のカンマ区切り）"
+
+  - name: stg_actions
+    description: "アクション情報のステージング（raw_actionsの1:1変換）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null]
+      - name: round_index
+        description: "局のインデックス"
+        tests: [not_null]
+      - name: action_index
+        description: "アクションのインデックス（0始まり）"
+        tests: [not_null]
+      - name: action_type
+        description: "アクション種別（draw/discard/chi/pon/ankan/daiminkan/kakan/reach/nuki）"
+      - name: player
+        description: "プレイヤーの席番号（0-3）"
+      - name: tile
+        description: "牌名（例: 1m, 東, 0p）"

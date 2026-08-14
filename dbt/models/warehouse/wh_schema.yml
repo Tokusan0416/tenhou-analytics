@@ -1,0 +1,137 @@
+version: 2
+
+models:
+  - name: dim_players
+    description: "プレイヤーディメンション（全対局に登場したプレイヤーをユニーク集約）"
+    columns:
+      - name: player_name
+        description: "プレイヤー名"
+        tests: [not_null, unique]
+      - name: max_dan
+        description: "最高段位"
+      - name: max_rate
+        description: "最高レート"
+      - name: game_count
+        description: "出場対局数"
+
+  - name: dim_game_types
+    description: "ゲーム種別ディメンション（四麻/三麻、東風/東南等の組み合わせ）"
+    columns:
+      - name: game_type_key
+        description: "サロゲートキー"
+        tests: [not_null, unique]
+      - name: player_count_label
+        description: "四麻 or 三麻"
+      - name: round_type_label
+        description: "東南戦 or 東風戦"
+
+  - name: dim_rounds
+    description: "局ディメンション（局番号→局ラベル・場風・オーラス等に展開）"
+    columns:
+      - name: round_number
+        description: "局番号（0=東1局〜7=南4局、8=西1局〜）"
+        tests: [not_null, unique]
+      - name: round_label
+        description: "局ラベル（例: 東1局、南4局、西1局）"
+      - name: wind
+        description: "場風（東場/南場/西場/北場）"
+      - name: is_ouras
+        description: "オーラス（南4局以降）フラグ"
+
+  - name: fct_games
+    description: "対局ファクト（1行=1対局×1プレイヤー）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null]
+      - name: seat
+        description: "席番号（0=東家, 1=南家, 2=西家, 3=北家）"
+      - name: player_name
+        description: "プレイヤー名"
+        tests: [not_null]
+      - name: is_me
+        description: "自分フラグ"
+      - name: final_rank
+        description: "最終順位（1-4）"
+        tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+      - name: final_score
+        description: "最終点数（百点単位）"
+      - name: final_point
+        description: "最終ポイント（ウマオカ込み）"
+      - name: game_date
+        description: "対局日時"
+      - name: game_order
+        description: "対局順序（game_id辞書順）"
+
+  - name: fct_rounds
+    description: "局ファクト（1行=1局）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null]
+      - name: round_index
+        description: "局インデックス"
+        tests: [not_null]
+      - name: result_type
+        description: "局の結果（agari/ryuukyoku）"
+
+  - name: fct_round_player_stats
+    description: "プレイヤー×局ファクト（全スタッツの算出基盤、1行=1局×1プレイヤー）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null]
+      - name: round_index
+        description: "局インデックス"
+        tests: [not_null]
+      - name: player_seat
+        description: "プレイヤーの席番号（0-3）"
+        tests: [not_null]
+      - name: player_name
+        description: "プレイヤー名"
+      - name: is_me
+        description: "自分フラグ"
+      - name: is_dealer
+        description: "親フラグ"
+      - name: is_agari
+        description: "アガリフラグ"
+        tests: [not_null]
+      - name: agari_type
+        description: "アガリ種別（リーチ/ダマ/副露、非アガリ時はNULL）"
+      - name: agari_ten
+        description: "アガリ点数（非アガリ時はNULL）"
+      - name: is_houjuu
+        description: "放銃フラグ"
+        tests: [not_null]
+      - name: houjuu_ten
+        description: "放銃点数（非放銃時はNULL）"
+      - name: is_hi_tsumo
+        description: "被ツモフラグ"
+        tests: [not_null]
+      - name: is_yoko_ido
+        description: "横移動フラグ"
+        tests: [not_null]
+      - name: is_reach
+        description: "リーチフラグ"
+        tests: [not_null]
+      - name: is_first_reach
+        description: "先制リーチフラグ"
+      - name: is_naki
+        description: "副露フラグ（暗槓除く）"
+        tests: [not_null]
+      - name: naki_count
+        description: "副露回数（暗槓除く）"
+      - name: rank_at_start
+        description: "局開始時の順位（1-4）"
+      - name: point_diff_to_top
+        description: "局開始時のトップとの点差（百点単位）"
+      - name: opponents_reach_count
+        description: "同局の他家リーチ者数（0-3）"
+      - name: opponents_naki_count
+        description: "同局の他家副露者数（0-3）"
+      - name: score_change
+        description: "点数変動（百点単位）"
+        tests: [not_null]

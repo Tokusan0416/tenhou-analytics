@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: mart_player_stats
+    description: "プレイヤー別スタッツ集計（全主要指標を事前計算）"
+    columns:
+      - name: player_name
+        description: "プレイヤー名"
+        tests: [not_null]
+      - name: is_me
+        description: "自分フラグ"
+      - name: total_games
+        description: "対局数"
+      - name: total_rounds
+        description: "局数"
+      - name: avg_rank
+        description: "平均順位"
+      - name: total_point
+        description: "合計ポイント"
+      - name: avg_point
+        description: "平均ポイント"
+      - name: top_rate
+        description: "トップ率（%）"
+      - name: rentai_rate
+        description: "連対率（%）"
+      - name: last_rate
+        description: "ラス率（%）"
+      - name: agari_rate
+        description: "アガリ率（%）"
+      - name: houjuu_rate
+        description: "放銃率（%）"
+      - name: reach_rate
+        description: "リーチ率（%）"
+      - name: naki_rate
+        description: "副露率（%）"
+
+  - name: mart_game_results
+    description: "対局結果一覧（自分の対局のみ、累積ポイント・局単位集計付き）"
+    columns:
+      - name: game_id
+        description: "対局ID"
+        tests: [not_null, unique]
+      - name: game_order
+        description: "対局順序"
+      - name: seat
+        description: "席番号（0=東家〜3=北家）"
+      - name: dan
+        description: "段位"
+      - name: rate
+        description: "レート"
+      - name: final_rank
+        description: "最終順位（1-4）"
+      - name: final_score
+        description: "最終点数（百点単位）"
+      - name: final_point
+        description: "最終ポイント"
+      - name: agari_count
+        description: "アガリ回数"
+      - name: houjuu_count
+        description: "放銃回数"
+      - name: reach_count
+        description: "リーチ回数"
+      - name: naki_count
+        description: "副露回数"
+      - name: cumulative_point
+        description: "累積ポイント"
+
+  - name: mart_yaku_stats
+    description: "役別アガリ集計（役名×翻数、カテゴリ・門前副露判定付き）"
+    columns:
+      - name: player_name
+        description: "プレイヤー名"
+        tests: [not_null]
+      - name: yaku_name
+        description: "役名（正規化済み: 場風/自風/役牌のプレフィクス除去）"
+        tests: [not_null]
+      - name: yaku_category
+        description: "役カテゴリ（門前系/場風/自風/三元牌/その他）"
+      - name: yaku_count
+        description: "アガリ回数"
+      - name: avg_han
+        description: "平均翻数"

@@ -4,10 +4,43 @@ sources:
   - name: tenhou_raw
     database: "{{ env_var('GCP_PROJECT_ID', 'invertible-vine-477701-j8') }}"
     schema: tenhou_raw
+    description: "Pythonローダーが書き込むrawデータ"
     tables:
       - name: raw_games
-        description: "対局メタ情報"
+        description: "対局メタ情報（1行=1対局）"
+        columns:
+          - name: game_id
+            description: "対局ID（ファイル名から抽出）"
+            tests: [not_null, unique]
+          - name: game_date
+            description: "対局日時（ファイル名から抽出、時まで）"
+          - name: my_seat
+            description: "自分の席番号（0-3）"
+
       - name: raw_rounds
-        description: "局ごとの情報"
+        description: "局ごとの情報（1行=1局）"
+        columns:
+          - name: game_id
+            description: "対局ID"
+            tests: [not_null]
+          - name: round_index
+            description: "局のインデックス（0始まり）"
+            tests: [not_null]
+
       - name: raw_actions
-        description: "巡目ごとのアクション"
+        description: "巡目ごとのアクション（1行=1アクション）"
+        columns:
+          - name: game_id
+            description: "対局ID"
+            tests: [not_null]
+          - name: round_index
+            description: "局のインデックス"
+            tests: [not_null]
+          - name: action_index
+            description: "アクションのインデックス（0始まり）"
+            tests: [not_null]
+          - name: action_type
+            description: "アクション種別"
+            tests:
+              - accepted_values:
+                  values: ['draw', 'discard', 'chi', 'pon', 'ankan', 'daiminkan', 'kakan', 'reach', 'nuki']
