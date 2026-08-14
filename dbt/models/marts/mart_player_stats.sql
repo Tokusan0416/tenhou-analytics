@@ -39,8 +39,10 @@ WITH
             ,is_me
             ,COUNT(*) AS total_games
             ,AVG(final_rank) AS avg_rank
+            ,SUM(final_point) AS total_point
             ,AVG(final_point) AS avg_point
             ,AVG(CASE WHEN final_rank = 1 THEN 1.0 ELSE 0 END) AS top_rate
+            ,AVG(CASE WHEN final_rank <= 2 THEN 1.0 ELSE 0 END) AS rentai_rate
             ,AVG(CASE WHEN final_rank = 4 THEN 1.0 ELSE 0 END) AS last_rate
         FROM
             {{ ref('fct_games') }}
@@ -57,8 +59,10 @@ SELECT
 
     -- 順位
     ,ROUND(g.avg_rank, 2) AS avg_rank
+    ,ROUND(g.total_point, 1) AS total_point
     ,ROUND(g.avg_point, 1) AS avg_point
     ,ROUND(g.top_rate * 100, 1) AS top_rate
+    ,ROUND(g.rentai_rate * 100, 1) AS rentai_rate
     ,ROUND(g.last_rate * 100, 1) AS last_rate
 
     -- 局収支
