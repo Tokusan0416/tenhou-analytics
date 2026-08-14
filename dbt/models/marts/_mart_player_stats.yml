@@ -25,11 +25,31 @@ models:
     description: 連対率（%）
   - name: last_rate
     description: ラス率（%）
+  - name: avg_score_change
+    description: 平均局収支
   - name: agari_rate
     description: アガリ率（%）
+  - name: avg_agari_ten
+    description: 平均アガリ打点
+  - name: avg_naki_agari_ten
+    description: 平均副露アガリ打点
+  - name: avg_agari_turn
+    description: 平均アガリ巡目
   - name: houjuu_rate
     description: 放銃率（%）
+  - name: avg_houjuu_ten
+    description: 平均放銃打点
+  - name: agari_houjuu_diff
+    description: アガリ放銃差（%）
+  - name: adjusted_score_efficiency
+    description: 調整打点効率
   - name: reach_rate
     description: リーチ率（%）
+  - name: first_reach_rate
+    description: 先制リーチ率（%）
   - name: naki_rate
     description: 副露率（%）
+  - name: avg_ryuukyoku_score_change
+    description: 流局平均得失点
+  - name: avg_dora_count
+    description: 平均ドラ翻数

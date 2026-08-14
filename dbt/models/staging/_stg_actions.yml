@@ -21,3 +21,5 @@ models:
     description: プレイヤーの席番号（0-3）
   - name: tile
     description: '牌名（例: 1m, 東, 0p）'
+  - name: turn
+    description: 巡目

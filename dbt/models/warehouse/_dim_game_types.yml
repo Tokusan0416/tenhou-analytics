@@ -8,6 +8,16 @@ models:
     tests:
     - not_null
     - unique
+  - name: is_sanma
+    description: 三麻フラグ
+  - name: is_tonnansen
+    description: 東南戦フラグ
+  - name: is_soku
+    description: 速卓フラグ
+  - name: is_no_red
+    description: 赤なしフラグ
+  - name: lobby
+    description: 卓の種別（一般/上級/特上/鳳凰）
   - name: player_count_label
     description: 四麻 or 三麻
   - name: round_type_label

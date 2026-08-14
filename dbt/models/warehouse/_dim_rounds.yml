@@ -12,5 +12,7 @@ models:
     description: '局ラベル（例: 東1局、南4局、西1局）'
   - name: wind
     description: 場風（東場/南場/西場/北場）
+  - name: wind_index
+    description: 場内の局番号（1-4）
   - name: is_ouras
     description: オーラス（南4局以降）フラグ

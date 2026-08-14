@@ -8,8 +8,16 @@ models:
     tests:
     - not_null
     - unique
+  - name: game_date
+    description: 対局日時（時まで）
+  - name: game_date_jst
+    description: 対局日（JSTのDATE型）
+  - name: game_hour
+    description: 対局開始時（0-23）
   - name: game_order
     description: 対局順序
+  - name: player_name
+    description: プレイヤー名
   - name: seat
     description: 席番号（0=東家〜3=北家）
   - name: dan
@@ -22,6 +30,12 @@ models:
     description: 最終点数（百点単位）
   - name: final_point
     description: 最終ポイント
+  - name: is_tonnansen
+    description: 東南戦フラグ
+  - name: lobby
+    description: 卓の種別（一般/上級/特上/鳳凰）
+  - name: num_rounds
+    description: 局数
   - name: agari_count
     description: アガリ回数
   - name: houjuu_count
@@ -30,5 +44,31 @@ models:
     description: リーチ回数
   - name: naki_count
     description: 副露回数
+  - name: hi_tsumo_count
+    description: 対局内の被ツモ回数
+  - name: opponent1_name
+    description: 対戦者1の名前
+  - name: opponent1_dan
+    description: 対戦者1の段位
+  - name: opponent1_rate
+    description: 対戦者1のレート
+  - name: opponent1_rank
+    description: 対戦者1の順位
+  - name: opponent2_name
+    description: 対戦者2の名前
+  - name: opponent2_dan
+    description: 対戦者2の段位
+  - name: opponent2_rate
+    description: 対戦者2のレート
+  - name: opponent2_rank
+    description: 対戦者2の順位
+  - name: opponent3_name
+    description: 対戦者3の名前
+  - name: opponent3_dan
+    description: 対戦者3の段位
+  - name: opponent3_rate
+    description: 対戦者3のレート
+  - name: opponent3_rank
+    description: 対戦者3の順位
   - name: cumulative_point
     description: 累積ポイント

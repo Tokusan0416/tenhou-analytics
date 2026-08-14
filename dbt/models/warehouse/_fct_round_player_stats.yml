@@ -11,6 +11,12 @@ models:
     description: 局インデックス
     tests:
     - not_null
+  - name: round_number
+    description: 局番号（0=東1局〜7=南4局、8以降=西場）
+  - name: honba
+    description: 本場数
+  - name: riichi_sticks
+    description: 供託リーチ棒の本数
   - name: player_seat
     description: プレイヤーの席番号（0-3）
     tests:
@@ -21,14 +27,30 @@ models:
     description: 自分フラグ
   - name: is_dealer
     description: 親フラグ
+  - name: result_type
+    description: 局の結果（agari/ryuukyoku）
   - name: is_agari
     description: アガリフラグ
     tests:
     - not_null
-  - name: agari_type
-    description: アガリ種別（リーチ/ダマ/副露、非アガリ時はNULL）
+  - name: is_tsumo
+    description: ツモアガリフラグ（非アガリ時はNULL）
   - name: agari_ten
     description: アガリ点数（非アガリ時はNULL）
+  - name: agari_han
+    description: 翻数
+  - name: agari_fu
+    description: 符
+  - name: agari_yaku
+    description: 役一覧（役名:翻数のカンマ区切り）
+  - name: agari_turn
+    description: アガリ巡目
+  - name: dora_count
+    description: アガリ時のドラ翻数（非アガリ時はNULL）
+  - name: ura_dora_count
+    description: アガリ時の裏ドラ翻数（非アガリ時はNULL）
+  - name: aka_dora_count
+    description: アガリ時の赤ドラ翻数（非アガリ時はNULL）
   - name: is_houjuu
     description: 放銃フラグ
     tests:
@@ -39,6 +61,8 @@ models:
     description: 被ツモフラグ
     tests:
     - not_null
+  - name: hi_tsumo_ten
+    description: 被ツモ失点（非被ツモ時はNULL）
   - name: is_yoko_ido
     description: 横移動フラグ
     tests:
@@ -55,15 +79,19 @@ models:
     - not_null
   - name: naki_count
     description: 副露回数（暗槓除く）
+  - name: is_tenpai
+    description: 流局時テンパイフラグ
   - name: rank_at_start
     description: 局開始時の順位（1-4）
   - name: point_diff_to_top
     description: 局開始時のトップとの点差（百点単位）
-  - name: opponents_reach_count
-    description: 同局の他家リーチ者数（0-3）
-  - name: opponents_naki_count
-    description: 同局の他家副露者数（0-3）
   - name: score_change
     description: 点数変動（百点単位）
     tests:
     - not_null
+  - name: agari_type
+    description: アガリ種別（リーチ/ダマ/副露、非アガリ時はNULL）
+  - name: opponents_reach_count
+    description: 同局の他家リーチ者数（0-3）
+  - name: opponents_naki_count
+    description: 同局の他家副露者数（0-3）

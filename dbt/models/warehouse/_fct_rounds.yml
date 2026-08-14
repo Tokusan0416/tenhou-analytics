@@ -11,5 +11,57 @@ models:
     description: 局インデックス
     tests:
     - not_null
+  - name: round_number
+    description: 局番号（0=東1局〜7=南4局、8以降=西場）
+  - name: honba
+    description: 本場数
+  - name: riichi_sticks
+    description: 供託リーチ棒の本数
+  - name: dora_indicator
+    description: ドラ表示牌
+  - name: dealer
+    description: 親の席番号（0-3）
+  - name: starting_score0
+    description: プレイヤー0の開始点数（百点単位）
+  - name: starting_score1
+    description: プレイヤー1の開始点数
+  - name: starting_score2
+    description: プレイヤー2の開始点数
+  - name: starting_score3
+    description: プレイヤー3の開始点数
   - name: result_type
     description: 局の結果（agari/ryuukyoku）
+  - name: agari_winner
+    description: 和了者の席番号
+  - name: agari_from_who
+    description: 放銃者の席番号（ツモ時は和了者と同じ）
+  - name: agari_is_tsumo
+    description: ツモアガリフラグ
+  - name: agari_ten
+    description: アガリ点数
+  - name: agari_fu
+    description: 符
+  - name: agari_han
+    description: 翻数
+  - name: agari_yaku
+    description: 役一覧（役名:翻数のカンマ区切り）
+  - name: agari_winning_tile
+    description: 和了牌
+  - name: agari_dora_count
+    description: ドラ翻数
+  - name: agari_ura_dora_count
+    description: 裏ドラ翻数
+  - name: agari_aka_dora_count
+    description: 赤ドラ翻数
+  - name: score_change0
+    description: プレイヤー0の点数変動（百点単位）
+  - name: score_change1
+    description: プレイヤー1の点数変動
+  - name: score_change2
+    description: プレイヤー2の点数変動
+  - name: score_change3
+    description: プレイヤー3の点数変動
+  - name: ryuukyoku_reason
+    description: 流局理由（yao9/reach4/ron3/kan4等、通常流局はNULL）
+  - name: tenpai_players
+    description: 流局時テンパイだったプレイヤーの席番号（カンマ区切り）

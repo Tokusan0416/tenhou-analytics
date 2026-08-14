@@ -12,9 +12,55 @@ models:
     description: 対局日時（時まで）
   - name: my_seat
     description: 自分の席番号（0-3）
+  - name: is_sanma
+    description: 三麻フラグ
   - name: is_tonnansen
     description: 東南戦フラグ
+  - name: is_soku
+    description: 速卓フラグ
+  - name: is_no_red
+    description: 赤なしフラグ
   - name: lobby
     description: 卓の種別（一般/上級/特上/鳳凰）
   - name: num_rounds
     description: 対局内の局数
+  - name: player0_name
+    description: プレイヤー0の名前
+  - name: player1_name
+    description: プレイヤー1の名前
+  - name: player2_name
+    description: プレイヤー2の名前
+  - name: player3_name
+    description: プレイヤー3の名前
+  - name: player0_dan
+    description: プレイヤー0の段位
+  - name: player1_dan
+    description: プレイヤー1の段位
+  - name: player2_dan
+    description: プレイヤー2の段位
+  - name: player3_dan
+    description: プレイヤー3の段位
+  - name: player0_rate
+    description: プレイヤー0のレート
+  - name: player1_rate
+    description: プレイヤー1のレート
+  - name: player2_rate
+    description: プレイヤー2のレート
+  - name: player3_rate
+    description: プレイヤー3のレート
+  - name: final_score0
+    description: プレイヤー0の最終点数（百点単位）
+  - name: final_score1
+    description: プレイヤー1の最終点数
+  - name: final_score2
+    description: プレイヤー2の最終点数
+  - name: final_score3
+    description: プレイヤー3の最終点数
+  - name: final_point0
+    description: プレイヤー0の最終ポイント
+  - name: final_point1
+    description: プレイヤー1の最終ポイント
+  - name: final_point2
+    description: プレイヤー2の最終ポイント
+  - name: final_point3
+    description: プレイヤー3の最終ポイント

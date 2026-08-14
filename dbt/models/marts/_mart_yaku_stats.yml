@@ -7,13 +7,21 @@ models:
     description: プレイヤー名
     tests:
     - not_null
+  - name: is_me
+    description: 自分フラグ
   - name: yaku_name
     description: '役名（正規化済み: 場風/自風/役牌のプレフィクス除去）'
     tests:
     - not_null
   - name: yaku_category
     description: 役カテゴリ（門前系/場風/自風/三元牌/その他）
+  - name: menzen_furo
+    description: 門前/副露判定（門前/副露/NULL）
   - name: yaku_count
     description: アガリ回数
   - name: avg_han
     description: 平均翻数
+  - name: min_han
+    description: 最小翻数
+  - name: max_han
+    description: 最大翻数

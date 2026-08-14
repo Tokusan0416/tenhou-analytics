@@ -7,14 +7,30 @@ models:
     description: 対局ID
     tests:
     - not_null
+  - name: game_date
+    description: 対局日時
+  - name: game_date_jst
+    description: 対局日（JSTのDATE型）
+  - name: game_hour
+    description: 対局開始時（0-23）
+  - name: game_order
+    description: 対局順序（game_id辞書順）
   - name: seat
     description: 席番号（0=東家, 1=南家, 2=西家, 3=北家）
   - name: player_name
     description: プレイヤー名
     tests:
     - not_null
+  - name: dan
+    description: 段位
+  - name: rate
+    description: レート
   - name: is_me
     description: 自分フラグ
+  - name: final_score
+    description: 最終点数（百点単位）
+  - name: final_point
+    description: 最終ポイント（ウマオカ込み）
   - name: final_rank
     description: 最終順位（1-4）
     tests:
@@ -25,11 +41,15 @@ models:
         - 3
         - 4
         quote: false
-  - name: final_score
-    description: 最終点数（百点単位）
-  - name: final_point
-    description: 最終ポイント（ウマオカ込み）
-  - name: game_date
-    description: 対局日時
-  - name: game_order
-    description: 対局順序（game_id辞書順）
+  - name: is_sanma
+    description: 三麻フラグ
+  - name: is_tonnansen
+    description: 東南戦フラグ
+  - name: is_soku
+    description: 速卓フラグ
+  - name: is_no_red
+    description: 赤なしフラグ
+  - name: lobby
+    description: 卓の種別（一般/上級/特上/鳳凰）
+  - name: num_rounds
+    description: 局数
