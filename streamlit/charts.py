@@ -244,6 +244,164 @@ def render_rank_trend(games, period):
     return fig
 
 
+def render_agari_context_table(rounds: pd.DataFrame) -> pd.DataFrame | None:
+    """状況別アガリ分析テーブル。"""
+    if rounds.empty:
+        return None
+
+    contexts = [
+        ("全体", rounds),
+        ("リーチ時", rounds[rounds["is_reach"]]),
+        ("ダマ時", rounds[~rounds["is_reach"] & ~rounds["is_naki"]]),
+        ("副露時", rounds[rounds["is_naki"]]),
+        ("親", rounds[rounds["is_dealer"]]),
+        ("子", rounds[~rounds["is_dealer"]]),
+        ("他家リーチなし", rounds[rounds["opponents_reach_count"] == 0]),
+        ("他家リーチあり", rounds[rounds["opponents_reach_count"] >= 1]),
+        ("他家副露なし", rounds[rounds["opponents_naki_count"] == 0]),
+        ("他家副露あり", rounds[rounds["opponents_naki_count"] >= 1]),
+    ]
+
+    rows = []
+    for label, subset in contexts:
+        if subset.empty:
+            continue
+        n = len(subset)
+        agari = subset[subset["is_agari"]]
+        houjuu = subset[subset["is_houjuu"]]
+        rows.append({
+            "状況": label,
+            "局数": n,
+            "アガリ率": f"{agari.shape[0] / n * 100:.2f}%",
+            "アガリ回数": agari.shape[0],
+            "平均打点": f"{int(agari['agari_ten'].mean()):,}" if not agari.empty else "-",
+            "最高打点": f"{int(agari['agari_ten'].max()):,}" if not agari.empty else "-",
+            "平均巡目": f"{agari['agari_turn'].mean():.1f}" if not agari.empty and agari['agari_turn'].notna().any() else "-",
+            "放銃率": f"{houjuu.shape[0] / n * 100:.2f}%",
+            "放銃回数": houjuu.shape[0],
+            "放銃打点": f"{int(houjuu['houjuu_ten'].mean()):,}" if not houjuu.empty else "-",
+            "局収支": f"{subset['score_change'].mean():+.1f}",
+        })
+    return pd.DataFrame(rows)
+
+
+def render_agari_type_chart(rounds: pd.DataFrame):
+    """アガリ種別（リーチ/ダマ/副露）のバーチャート。"""
+    agari = rounds[rounds["is_agari"]].copy()
+    if agari.empty or "agari_type" not in agari.columns:
+        return None
+
+    type_order = ["リーチ", "ダマ", "副露"]
+    type_colors = [COLORS["primary"], COLORS["purple"], COLORS["secondary"]]
+
+    agg = agari.groupby("agari_type").agg(
+        count=("agari_ten", "size"),
+        avg_ten=("agari_ten", "mean"),
+        max_ten=("agari_ten", "max"),
+    ).reindex(type_order).dropna(subset=["count"]).reset_index()
+
+    total = agg["count"].sum()
+    agg["pct"] = (agg["count"] / total * 100).round(2)
+
+    fig = go.Figure()
+    for i, row in agg.iterrows():
+        color = type_colors[type_order.index(row["agari_type"])] if row["agari_type"] in type_order else COLORS["neutral"]
+        fig.add_trace(go.Bar(
+            x=[row["agari_type"]], y=[row["count"]],
+            name=row["agari_type"], marker_color=color,
+            text=f"{row['pct']:.1f}%",
+            textposition="auto", textfont=dict(size=14),
+            hovertemplate=f"{row['agari_type']}<br>{int(row['count'])}回 ({row['pct']:.2f}%)<br>"
+                          f"平均: {int(row['avg_ten']):,}点<br>最高: {int(row['max_ten']):,}点<extra></extra>",
+        ))
+    fig.update_layout(
+        yaxis_title="回数", height=350, margin=dict(t=30, b=50),
+        showlegend=False,
+    )
+    return fig
+
+
+def render_outcome_waterfall(rounds: pd.DataFrame):
+    """局の結末別ウォーターフォールチャート: どこでポイントを稼ぎ/失っているか。"""
+    outcomes = [
+        ("リーチアガリ", rounds[rounds["is_agari"] & rounds["is_reach"]]),
+        ("ダマアガリ", rounds[rounds["is_agari"] & ~rounds["is_reach"] & ~rounds["is_naki"]]),
+        ("副露アガリ", rounds[rounds["is_agari"] & rounds["is_naki"]]),
+        ("流局", rounds[rounds["result_type"] == "ryuukyoku"]),
+        ("横移動", rounds[rounds["is_yoko_ido"]]),
+        ("被ツモ", rounds[rounds["is_hi_tsumo"]]),
+        ("放銃", rounds[rounds["is_houjuu"]]),
+    ]
+
+    labels, values, counts, colors, measures = [], [], [], [], []
+    for label, subset in outcomes:
+        if subset.empty:
+            continue
+        total_sc = subset["score_change"].sum()
+        labels.append(label)
+        values.append(total_sc)
+        counts.append(len(subset))
+        colors.append(COLORS["positive"] if total_sc >= 0 else COLORS["negative"])
+        measures.append("relative")
+
+    if not labels:
+        return None
+
+    # 合計を追加
+    labels.append("合計")
+    values.append(sum(values))
+    counts.append(len(rounds))
+    measures.append("total")
+    colors.append(COLORS["primary"])
+
+    fig = go.Figure(go.Waterfall(
+        x=labels, y=values, measure=measures,
+        increasing=dict(marker_color=COLORS["positive"]),
+        decreasing=dict(marker_color=COLORS["negative"]),
+        totals=dict(marker_color=COLORS["primary"]),
+        text=[f"{v:+.0f}" for v in values],
+        textposition="outside", textfont=dict(size=11),
+        hovertemplate="%{x}<br>合計収支: %{y:+.0f}<br>回数: %{customdata}<extra></extra>",
+        customdata=counts,
+    ))
+    fig.update_layout(
+        yaxis_title="合計収支(百点)", height=400,
+        margin=dict(t=30, b=50),
+    )
+    return fig
+
+
+def render_opponents_situation_chart(rounds: pd.DataFrame, col: str = "opponents_reach_count", label: str = "他家リーチ"):
+    """他家状況別のアガリ率・放銃率チャート。"""
+    data = []
+    for cnt in sorted(rounds[col].unique()):
+        subset = rounds[rounds[col] == cnt]
+        n = len(subset)
+        if n < 3:
+            continue
+        data.append({
+            label: f"{int(cnt)}人",
+            "アガリ率": subset["is_agari"].mean() * 100,
+            "放銃率": subset["is_houjuu"].mean() * 100,
+            "局数": n,
+        })
+
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="アガリ率", x=df[label], y=df["アガリ率"],
+        marker_color=COLORS["positive"],
+        text=[f"{v:.2f}%" for v in df["アガリ率"]], textposition="auto"))
+    fig.add_trace(go.Bar(name="放銃率", x=df[label], y=df["放銃率"],
+        marker_color=COLORS["negative"],
+        text=[f"{v:.2f}%" for v in df["放銃率"]], textposition="auto"))
+    fig.update_layout(barmode="group", yaxis_title="%", height=350, margin=dict(t=30, b=50),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    return fig
+
+
 def grouped_bar_chart(df, group_col, metrics, label_fn=None, colors=None):
     fig = go.Figure()
     groups = sorted(df[group_col].unique())

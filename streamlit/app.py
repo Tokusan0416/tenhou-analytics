@@ -7,8 +7,12 @@ import streamlit as st
 
 from charts import (
     grouped_bar_chart,
+    render_agari_context_table,
+    render_agari_type_chart,
     render_cumulative_point_chart,
     render_kpi_metrics,
+    render_opponents_situation_chart,
+    render_outcome_waterfall,
     render_radar_chart,
     render_rank_distribution,
     render_rank_trend,
@@ -86,8 +90,8 @@ def main():
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)
 
     # ===== タブ =====
-    tab_overview, tab_trend, tab_wind, tab_dealer, tab_round, tab_rank, tab_history = st.tabs(
-        ["総合", "推移", "東場/南場", "親/子", "局別", "順位状況別", "対局履歴"]
+    tab_overview, tab_context, tab_trend, tab_wind, tab_dealer, tab_round, tab_rank, tab_history = st.tabs(
+        ["総合", "状況別分析", "推移", "東場/南場", "親/子", "局別", "順位状況別", "対局履歴"]
     )
 
     # --- 総合タブ ---
@@ -156,6 +160,63 @@ def main():
                 yd["％"] = (yd["count"] / total_agari * 100).round(2)
                 yd = yd.rename(columns={"count": "回数"})
                 st.dataframe(yd[["役名", "回数", "％"]], use_container_width=True, hide_index=True)
+
+    # --- 状況別分析タブ ---
+    with tab_context:
+        # ウォーターフォール + アガリ種別
+        col_waterfall, col_type = st.columns(2)
+        with col_waterfall:
+            st.subheader("局結末別の収支内訳")
+            fig = render_outcome_waterfall(rounds)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+        with col_type:
+            st.subheader("アガリ種別")
+            fig = render_agari_type_chart(rounds)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+
+        # アガリ種別テーブル
+        agari_data = rounds[rounds["is_agari"]].copy()
+        if not agari_data.empty and "agari_type" in agari_data.columns:
+            type_rows = []
+            for at in ["リーチ", "ダマ", "副露"]:
+                subset = agari_data[agari_data["agari_type"] == at]
+                if subset.empty:
+                    continue
+                type_rows.append({
+                    "種別": at,
+                    "回数": len(subset),
+                    "割合": f"{len(subset) / len(agari_data) * 100:.2f}%",
+                    "平均打点": f"{int(subset['agari_ten'].mean()):,}",
+                    "最高打点": f"{int(subset['agari_ten'].max()):,}",
+                    "平均巡目": f"{subset['agari_turn'].mean():.1f}" if subset['agari_turn'].notna().any() else "-",
+                })
+            if type_rows:
+                st.dataframe(pd.DataFrame(type_rows), use_container_width=True, hide_index=True)
+
+        st.divider()
+
+        # 他家状況別
+        st.subheader("他家状況別")
+        col_opp_reach, col_opp_naki = st.columns(2)
+        with col_opp_reach:
+            st.caption("他家リーチ数別")
+            fig = render_opponents_situation_chart(rounds)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+        with col_opp_naki:
+            st.caption("他家副露数別")
+            fig = render_opponents_situation_chart(rounds, col="opponents_naki_count", label="他家副露")
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        st.subheader("状況別スタッツ一覧")
+        context_table = render_agari_context_table(rounds)
+        if context_table is not None:
+            st.dataframe(context_table, use_container_width=True, hide_index=True)
 
     # --- 推移タブ ---
     with tab_trend:
@@ -228,12 +289,14 @@ def main():
         st.plotly_chart(render_cumulative_point_chart(filtered_games), use_container_width=True)
 
         st.subheader("対局結果一覧")
-        display_cols = ["game_id", "game_date_jst", "final_rank", "final_point", "num_rounds",
+        display_cols = ["game_id", "game_date_jst", "dan", "rate",
+            "final_rank", "final_point", "num_rounds",
             "opponent1_name", "opponent2_name", "opponent3_name", "cumulative_point"]
         available = [c for c in display_cols if c in filtered_games.columns]
         ddf = filtered_games[available].rename(columns={
-            "game_id": "対局ID", "game_date_jst": "日付", "final_rank": "順位",
-            "final_point": "ポイント", "num_rounds": "局数",
+            "game_id": "対局ID", "game_date_jst": "日付",
+            "dan": "段位", "rate": "R",
+            "final_rank": "順位", "final_point": "ポイント", "num_rounds": "局数",
             "opponent1_name": "対戦者1", "opponent2_name": "対戦者2",
             "opponent3_name": "対戦者3", "cumulative_point": "累積ポイント"})
         st.dataframe(ddf, use_container_width=True, hide_index=True)

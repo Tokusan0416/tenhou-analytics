@@ -7,6 +7,8 @@ SELECT
     ,g.game_hour
     ,g.game_order
     ,g.player_name
+    ,g.dan
+    ,g.rate
     ,g.final_rank
     ,g.final_score
     ,g.final_point
@@ -15,10 +17,16 @@ SELECT
     ,g.num_rounds
     -- 同卓者情報
     ,o1.player_name AS opponent1_name
+    ,o1.dan AS opponent1_dan
+    ,o1.rate AS opponent1_rate
     ,o1.final_rank AS opponent1_rank
     ,o2.player_name AS opponent2_name
+    ,o2.dan AS opponent2_dan
+    ,o2.rate AS opponent2_rate
     ,o2.final_rank AS opponent2_rank
     ,o3.player_name AS opponent3_name
+    ,o3.dan AS opponent3_dan
+    ,o3.rate AS opponent3_rate
     ,o3.final_rank AS opponent3_rank
     -- 累積ポイント（対局順に累積）
     ,SUM(g.final_point) OVER (
