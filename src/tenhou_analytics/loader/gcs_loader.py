@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -67,13 +68,20 @@ def load_from_gcs(
         blob = bucket.blob(blob_name)
 
         # GCSからtempfileにダウンロードしてパース
-        with tempfile.NamedTemporaryFile(suffix=".mjlog", delete=True) as tmp:
-            blob.download_to_filename(tmp.name)
-            game = parse_mjlog(tmp.name)
+        with tempfile.NamedTemporaryFile(suffix=".mjlog", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            blob.download_to_filename(str(tmp_path))
+            game = parse_mjlog(str(tmp_path))
             # ファイル名からmy_seatを復元（tmpだとパスが変わるため）
             game.game_id = _extract_game_id_from_blob(blob_name)
             game.game_date = _extract_game_date(game.game_id)
             game.my_seat = _extract_my_seat_from_blob(blob_name)
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
         my_player = game.players[game.my_seat]
         entry = {
