@@ -101,7 +101,7 @@ tests/                         # テスト
 - [x] Streamlitアプリ（ローカル）— apps/mahjong-dashboard/
 - [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
 - [x] Docker化
-- [ ] Cloud Runデプロイ（手動）
+- [x] Cloud Runデプロイ（手動）
 - [ ] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [ ] dbt実行の自動化
 - [ ] テンパイ判定/待ち形/シャンテン数（mahjongライブラリで実装可能、手牌追跡+計算が必要）

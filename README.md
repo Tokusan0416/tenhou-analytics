@@ -119,7 +119,23 @@ cd dbt && uv run --group dbt dbt run --profiles-dir . --full-refresh && cd ..
 ### Streamlitダッシュボード
 
 ```bash
+# ローカル
 uv run streamlit run apps/mahjong-dashboard/app.py
+
+# Docker
+cd apps/mahjong-dashboard
+docker build --platform linux/amd64 -t mahjong-dashboard .
+docker run -p 8080:8080 -v $HOME/.config/gcloud:/root/.config/gcloud:ro \
+  -e GCP_PROJECT_ID=your-project-id mahjong-dashboard
+
+# Cloud Runへのデプロイ
+IMAGE=asia-northeast1-docker.pkg.dev/$GCP_PROJECT_ID/tenhou-apps/mahjong-dashboard:latest
+docker build --platform linux/amd64 -t $IMAGE apps/mahjong-dashboard/
+docker push $IMAGE
+gcloud run deploy mahjong-dashboard --image=$IMAGE --region=asia-northeast1 \
+  --service-account=mahjong-dashboard@$GCP_PROJECT_ID.iam.gserviceaccount.com \
+  --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID" \
+  --port=8080 --memory=512Mi --allow-unauthenticated
 ```
 
 ### テスト
