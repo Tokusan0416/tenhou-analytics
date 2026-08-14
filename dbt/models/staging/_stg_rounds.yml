@@ -1,0 +1,24 @@
+version: 2
+models:
+- name: stg_rounds
+  description: 局情報のステージング（raw_roundsの1:1変換）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局のインデックス（0始まり）
+    tests:
+    - not_null
+  - name: round_number
+    description: 局番号（0=東1局〜7=南4局、8以降=西場）
+  - name: result_type
+    description: 局の結果種別
+    tests:
+    - accepted_values:
+        values:
+        - agari
+        - ryuukyoku
+  - name: agari_yaku
+    description: アガリ時の役一覧（役名:翻数のカンマ区切り）

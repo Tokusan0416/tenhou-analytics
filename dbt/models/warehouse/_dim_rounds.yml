@@ -1,0 +1,16 @@
+version: 2
+models:
+- name: dim_rounds
+  description: 局ディメンション（局番号→局ラベル・場風・オーラス等に展開）
+  columns:
+  - name: round_number
+    description: 局番号（0=東1局〜7=南4局、8=西1局〜）
+    tests:
+    - not_null
+    - unique
+  - name: round_label
+    description: '局ラベル（例: 東1局、南4局、西1局）'
+  - name: wind
+    description: 場風（東場/南場/西場/北場）
+  - name: is_ouras
+    description: オーラス（南4局以降）フラグ

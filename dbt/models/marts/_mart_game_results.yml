@@ -1,0 +1,34 @@
+version: 2
+models:
+- name: mart_game_results
+  description: 対局結果一覧（自分の対局のみ、累積ポイント・局単位集計付き）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+    - unique
+  - name: game_order
+    description: 対局順序
+  - name: seat
+    description: 席番号（0=東家〜3=北家）
+  - name: dan
+    description: 段位
+  - name: rate
+    description: レート
+  - name: final_rank
+    description: 最終順位（1-4）
+  - name: final_score
+    description: 最終点数（百点単位）
+  - name: final_point
+    description: 最終ポイント
+  - name: agari_count
+    description: アガリ回数
+  - name: houjuu_count
+    description: 放銃回数
+  - name: reach_count
+    description: リーチ回数
+  - name: naki_count
+    description: 副露回数
+  - name: cumulative_point
+    description: 累積ポイント

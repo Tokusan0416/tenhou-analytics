@@ -1,0 +1,35 @@
+version: 2
+models:
+- name: mart_player_stats
+  description: プレイヤー別スタッツ集計（全主要指標を事前計算）
+  columns:
+  - name: player_name
+    description: プレイヤー名
+    tests:
+    - not_null
+  - name: is_me
+    description: 自分フラグ
+  - name: total_games
+    description: 対局数
+  - name: total_rounds
+    description: 局数
+  - name: avg_rank
+    description: 平均順位
+  - name: total_point
+    description: 合計ポイント
+  - name: avg_point
+    description: 平均ポイント
+  - name: top_rate
+    description: トップ率（%）
+  - name: rentai_rate
+    description: 連対率（%）
+  - name: last_rate
+    description: ラス率（%）
+  - name: agari_rate
+    description: アガリ率（%）
+  - name: houjuu_rate
+    description: 放銃率（%）
+  - name: reach_rate
+    description: リーチ率（%）
+  - name: naki_rate
+    description: 副露率（%）

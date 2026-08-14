@@ -1,0 +1,15 @@
+version: 2
+models:
+- name: fct_rounds
+  description: 局ファクト（1行=1局）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局インデックス
+    tests:
+    - not_null
+  - name: result_type
+    description: 局の結果（agari/ryuukyoku）

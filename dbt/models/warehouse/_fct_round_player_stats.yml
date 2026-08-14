@@ -1,0 +1,69 @@
+version: 2
+models:
+- name: fct_round_player_stats
+  description: プレイヤー×局ファクト（全スタッツの算出基盤、1行=1局×1プレイヤー）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局インデックス
+    tests:
+    - not_null
+  - name: player_seat
+    description: プレイヤーの席番号（0-3）
+    tests:
+    - not_null
+  - name: player_name
+    description: プレイヤー名
+  - name: is_me
+    description: 自分フラグ
+  - name: is_dealer
+    description: 親フラグ
+  - name: is_agari
+    description: アガリフラグ
+    tests:
+    - not_null
+  - name: agari_type
+    description: アガリ種別（リーチ/ダマ/副露、非アガリ時はNULL）
+  - name: agari_ten
+    description: アガリ点数（非アガリ時はNULL）
+  - name: is_houjuu
+    description: 放銃フラグ
+    tests:
+    - not_null
+  - name: houjuu_ten
+    description: 放銃点数（非放銃時はNULL）
+  - name: is_hi_tsumo
+    description: 被ツモフラグ
+    tests:
+    - not_null
+  - name: is_yoko_ido
+    description: 横移動フラグ
+    tests:
+    - not_null
+  - name: is_reach
+    description: リーチフラグ
+    tests:
+    - not_null
+  - name: is_first_reach
+    description: 先制リーチフラグ
+  - name: is_naki
+    description: 副露フラグ（暗槓除く）
+    tests:
+    - not_null
+  - name: naki_count
+    description: 副露回数（暗槓除く）
+  - name: rank_at_start
+    description: 局開始時の順位（1-4）
+  - name: point_diff_to_top
+    description: 局開始時のトップとの点差（百点単位）
+  - name: opponents_reach_count
+    description: 同局の他家リーチ者数（0-3）
+  - name: opponents_naki_count
+    description: 同局の他家副露者数（0-3）
+  - name: score_change
+    description: 点数変動（百点単位）
+    tests:
+    - not_null

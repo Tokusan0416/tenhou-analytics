@@ -1,0 +1,16 @@
+version: 2
+models:
+- name: dim_players
+  description: プレイヤーディメンション（全対局に登場したプレイヤーをユニーク集約）
+  columns:
+  - name: player_name
+    description: プレイヤー名
+    tests:
+    - not_null
+    - unique
+  - name: max_dan
+    description: 最高段位
+  - name: max_rate
+    description: 最高レート
+  - name: game_count
+    description: 出場対局数

@@ -1,0 +1,14 @@
+version: 2
+models:
+- name: dim_game_types
+  description: ゲーム種別ディメンション（四麻/三麻、東風/東南等の組み合わせ）
+  columns:
+  - name: game_type_key
+    description: サロゲートキー
+    tests:
+    - not_null
+    - unique
+  - name: player_count_label
+    description: 四麻 or 三麻
+  - name: round_type_label
+    description: 東南戦 or 東風戦

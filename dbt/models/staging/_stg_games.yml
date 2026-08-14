@@ -1,0 +1,20 @@
+version: 2
+models:
+- name: stg_games
+  description: 対局メタ情報のステージング（raw_gamesの1:1変換）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+    - unique
+  - name: game_date
+    description: 対局日時（時まで）
+  - name: my_seat
+    description: 自分の席番号（0-3）
+  - name: is_tonnansen
+    description: 東南戦フラグ
+  - name: lobby
+    description: 卓の種別（一般/上級/特上/鳳凰）
+  - name: num_rounds
+    description: 対局内の局数

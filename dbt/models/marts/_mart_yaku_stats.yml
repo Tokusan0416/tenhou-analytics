@@ -1,0 +1,19 @@
+version: 2
+models:
+- name: mart_yaku_stats
+  description: 役別アガリ集計（役名×翻数、カテゴリ・門前副露判定付き）
+  columns:
+  - name: player_name
+    description: プレイヤー名
+    tests:
+    - not_null
+  - name: yaku_name
+    description: '役名（正規化済み: 場風/自風/役牌のプレフィクス除去）'
+    tests:
+    - not_null
+  - name: yaku_category
+    description: 役カテゴリ（門前系/場風/自風/三元牌/その他）
+  - name: yaku_count
+    description: アガリ回数
+  - name: avg_han
+    description: 平均翻数
