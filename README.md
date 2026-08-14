@@ -190,26 +190,51 @@ cd dbt && ./scripts/generate_schema.sh --all && cd ..
 - `mart_game_results`: 対局結果一覧（順位推移・累積ポイント付き）
 - `mart_yaku_stats`: 役別アガリ回数集計
 
+## CI/CD
+
+GitHub Actionsで自動化しています。認証はWorkload Identity Federation（サービスアカウントキー不要）。
+
+### PR時（ci.yml）
+
+| ステップ | 内容 |
+|---|---|
+| ruff lint + format check | Pythonコードの品質チェック |
+| pytest | パーサーのユニットテスト |
+| dbt compile | SQLの構文チェック |
+| dbt test | not_null / unique / accepted_values テスト（BQ接続） |
+
+### mainマージ時（deploy.yml）
+
+| ジョブ | 内容 |
+|---|---|
+| lint-and-test | ruff + pytest |
+| deploy | Docker build → Artifact Registry push → Cloud Run デプロイ |
+| dbt-run | dbt run（BQテーブル更新） + dbt test |
+
+### ブランチ運用
+
+mainへの直接pushは禁止。`feature/xxx` ブランチでPRを作成し、CIが通ったことを確認してからマージ。
+
 ## コスト
 
 - **BigQuery**: 無料枠（10GBストレージ、1TBクエリ/月）で十分
+- **Cloud Run**: スケールtoゼロで使わない時はコスト0
 - **dbt-core**: OSS版を使用（無料）
 - **GCS**: 必要に応じて利用（無料枠5GB）
+- **GitHub Actions**: パブリックリポジトリは無料
 
 ## 開発状況
 
 ### 完了
 
 - [x] mjlogパーサー実装
-- [x] BigQueryローダー実装
-- [x] GCS連携（tenhou-upload / tenhou-load --source gcs）
+- [x] BigQueryローダー / GCS連携
 - [x] dbtプロジェクト（staging/intermediate/warehouse/marts）
+- [x] Streamlitダッシュボード（apps/mahjong-dashboard/）
+- [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
+- [x] Docker化 / Cloud Runデプロイ
+- [x] CI/CD（GitHub Actions + Workload Identity Federation）
 
 ### 今後のステップ
 
-1. **Streamlitアプリ（ローカル）** — mart層のデータをダッシュボード化
-2. **Docker化** — Streamlitアプリをコンテナ化（Cloud Runデプロイの前提）
-3. **Cloud Runデプロイ（手動）** — サービスアカウント設定、`gcloud run deploy`
-4. **CI/CD（GitHub Actions）** — PR時: ruff + pytest + dbt compile / mainマージ時: Docker build → Cloud Runへ自動デプロイ
-5. **dbt実行の自動化** — CI/CDまたはCloud Run Jobsでdbt runを自動実行
-6. **dbt schema.yml / テスト整備** — モデルのdescription、カラム定義、not_null/uniqueテスト
+1. **テンパイ判定/待ち形/シャンテン数** — mahjongライブラリで実装可能、手牌追跡+計算が必要
