@@ -88,6 +88,8 @@ tests/                         # テスト
 
 - 作業完了時には必ずREADME.mdとclaude.mdを最新の状態に更新すること
 - コミットは機能単位でまとめる
+- dbtモデルの追加・編集時は必ず対応する `_model_name.yml` のメタデータ（description, テスト）も更新すること
+- `persist_docs` 有効のため、dbt run時にBigQueryのテーブル/カラム説明に自動反映される
 
 ## 現在の開発状況
 
@@ -97,9 +99,9 @@ tests/                         # テスト
 - [x] dbtプロジェクト（staging/intermediate/warehouse）
 - [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
 - [x] Streamlitアプリ（ローカル）— streamlit/app.py
+- [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
 - [ ] Docker化
 - [ ] Cloud Runデプロイ（手動）
 - [ ] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [ ] dbt実行の自動化
-- [ ] dbt schema.yml / テスト整備
 - [ ] テンパイ判定/待ち形/シャンテン数（mahjongライブラリで実装可能、手牌追跡+計算が必要）

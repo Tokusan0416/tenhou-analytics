@@ -13,6 +13,9 @@ clean-targets:
 
 models:
   tenhou_analytics:
+    +persist_docs:
+      relation: true
+      columns: true
     staging:
       +schema: staging
       +materialized: view

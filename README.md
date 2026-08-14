@@ -124,8 +124,31 @@ uv run streamlit run streamlit/app.py
 ### テスト
 
 ```bash
+# Pythonテスト
 uv run pytest -v
+
+# dbtテスト（not_null, unique, accepted_values等）
+cd dbt && uv run --group dbt dbt test --profiles-dir . && cd ..
 ```
+
+### dbt Docs（ドキュメント・リネージュ）
+
+```bash
+cd dbt && uv run --group dbt dbt docs generate --profiles-dir . && uv run --group dbt dbt docs serve --profiles-dir . && cd ..
+```
+
+### schema.ymlひな型の自動生成
+
+新しいモデルを追加した際に、codegenでyamlのひな型を生成できます。
+
+```bash
+cd dbt && ./scripts/generate_schema.sh <model_name> && cd ..
+
+# 全モデル一括
+cd dbt && ./scripts/generate_schema.sh --all && cd ..
+```
+
+生成されたひな型に `description` とテストを追記し、`_<model_name>.yml` として保存してください。
 
 ## dbtレイヤー構成
 
