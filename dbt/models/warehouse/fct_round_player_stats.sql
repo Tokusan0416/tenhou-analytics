@@ -180,6 +180,11 @@ WITH
 SELECT
     b.*
 
+    -- 局ディメンション
+    ,dr.round_label
+    ,dr.wind
+    ,dr.is_ouras
+
     -- アガリ種別（リーチ / ダマ / 副露）
     ,CASE
         WHEN b.is_agari AND b.is_reach THEN 'リーチ'
@@ -193,6 +198,7 @@ SELECT
 
 FROM
     base AS b
+    INNER JOIN {{ ref('dim_rounds') }} AS dr ON b.round_number = dr.round_number
     LEFT JOIN opponents_reach AS opr
         ON b.game_id = opr.game_id
         AND b.round_index = opr.round_index

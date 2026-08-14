@@ -95,3 +95,9 @@ models:
     description: 同局の他家リーチ者数（0-3）
   - name: opponents_naki_count
     description: 同局の他家副露者数（0-3）
+  - name: round_label
+    description: '局ラベル（例: 東1局）'
+  - name: wind
+    description: 場風（東場/南場/西場/北場）
+  - name: is_ouras
+    description: オーラスフラグ（南4局以降）

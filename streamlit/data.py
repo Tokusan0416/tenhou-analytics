@@ -21,11 +21,10 @@ def query_df(sql: str):
 
 def load_round_player_stats():
     return query_df("""
-        SELECT rps.*, dr.round_label, dr.wind, dr.is_ouras
-        FROM `tenhou_warehouse.fct_round_player_stats` AS rps
-        INNER JOIN `tenhou_warehouse.dim_rounds` AS dr ON rps.round_number = dr.round_number
-        WHERE rps.is_me
-        ORDER BY rps.game_id, rps.round_index
+        SELECT *
+        FROM `tenhou_warehouse.fct_round_player_stats`
+        WHERE is_me
+        ORDER BY game_id, round_index
     """)
 
 
