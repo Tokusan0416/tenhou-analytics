@@ -3,6 +3,14 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'dbt/**'
+      - 'apps/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
