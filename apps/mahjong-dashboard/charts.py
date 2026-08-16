@@ -54,8 +54,11 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
                 delta_str = f"{delta:+,.0f}"
             else:
                 delta_str = f"{delta:+{delta_fmt}}"
-            col.metric(label, display, delta=f"{delta_str}{suffix}",
-                       delta_color="inverse" if inverse else "normal")
+            if delta == 0:
+                col.metric(label, display, delta=f"±0{suffix}", delta_color="off")
+            else:
+                col.metric(label, display, delta=f"{delta_str}{suffix}",
+                           delta_color="inverse" if inverse else "normal")
         else:
             col.metric(label, display)
         if caption:
@@ -78,14 +81,16 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
        f"{game_stats['last_count']}回")
 
     st.caption("**局成績**")
-    c = st.columns(4)
+    c = st.columns(6)
     _m(c[0], "アガリ率", stats["agari_rate"], ".2f", ps["agari_rate"] if ps else None, False,
        f"{stats['agari_count']}回 / {stats['total_rounds']}局")
-    _m(c[1], "放銃率", stats["houjuu_rate"], ".2f", ps["houjuu_rate"] if ps else None, True,
+    _m(c[1], "アガリ打点", stats["avg_agari_ten"], ",.0f", ps["avg_agari_ten"] if ps else None, False)
+    _m(c[2], "放銃率", stats["houjuu_rate"], ".2f", ps["houjuu_rate"] if ps else None, True,
        f"{stats['houjuu_count']}回 / {stats['total_rounds']}局")
-    _m(c[2], "リーチ率", stats["reach_rate"], ".2f", ps["reach_rate"] if ps else None, False,
+    _m(c[3], "放銃打点", stats["avg_houjuu_ten"], ",.0f", ps["avg_houjuu_ten"] if ps else None, True)
+    _m(c[4], "リーチ率", stats["reach_rate"], ".2f", ps["reach_rate"] if ps else None, False,
        f"{stats['reach_count']}回 / {stats['total_rounds']}局")
-    _m(c[3], "副露率", stats["naki_rate"], ".2f", ps["naki_rate"] if ps else None, False,
+    _m(c[5], "副露率", stats["naki_rate"], ".2f", ps["naki_rate"] if ps else None, False,
        f"{stats['naki_count']}回 / {stats['total_rounds']}局")
 
 
