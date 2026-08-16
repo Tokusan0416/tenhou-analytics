@@ -101,3 +101,13 @@ models:
     description: 場風（東場/南場/西場/北場）
   - name: is_ouras
     description: オーラスフラグ（南4局以降）
+  - name: lobby
+    description: 卓の種別（一般/上級卓/特上卓/鳳凰卓）
+  - name: houjuu_to_type
+    description: 放銃先の種別（リーチ/副露/ダマ、非放銃時はNULL）
+  - name: houjuu_turn
+    description: 放銃巡目（和了者のアガリ巡目、非放銃時はNULL）
+  - name: houjuu_han
+    description: 放銃先の翻数（非放銃時はNULL）
+  - name: agari_rank
+    description: 和了ランク（0=なし〜5=役満、非アガリ時はNULL）

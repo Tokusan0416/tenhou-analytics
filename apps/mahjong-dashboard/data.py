@@ -43,10 +43,12 @@ def load_game_results():
 def load_yaku_detail():
     return query_df("""
         SELECT rps.game_id, rps.round_index, rps.round_number,
-               rps.is_dealer, rps.rank_at_start, rps.is_naki, rps.agari_yaku
+               rps.is_dealer, rps.rank_at_start, rps.is_naki, rps.agari_yaku,
+               rps.agari_ten, rps.agari_han
         FROM `tenhou_warehouse.fct_round_player_stats` AS rps
         WHERE rps.is_me AND rps.is_agari AND rps.agari_yaku IS NOT NULL
     """)
+
 
 
 # ==============================
@@ -153,12 +155,15 @@ def process_yaku_data(yaku_detail: pd.DataFrame, filtered_rounds: pd.DataFrame) 
                 if name_raw.startswith(prefix):
                     name_raw = name_raw[len(prefix):]
                     break
-            rows.append({"yaku_name": name_raw, "han": int(han_str)})
+            rows.append({"yaku_name": name_raw, "han": int(han_str), "agari_ten": r.get("agari_ten", 0)})
 
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
-    return df.groupby(["yaku_name", "han"]).size().reset_index(name="count").sort_values("count", ascending=False)
+    return df.groupby(["yaku_name", "han"]).agg(
+        count=("agari_ten", "size"),
+        avg_ten=("agari_ten", "mean"),
+    ).reset_index().sort_values("count", ascending=False)
 
 
 def grouped_stats_table(df: pd.DataFrame, group_col: str,

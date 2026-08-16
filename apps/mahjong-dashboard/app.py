@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from charts import (
@@ -11,6 +12,8 @@ from charts import (
     render_agari_type_chart,
     render_cross_analysis_heatmap,
     render_cumulative_point_chart,
+    render_han_distribution,
+    render_houjuu_type_chart,
     render_kpi_metrics,
     render_opponents_situation_chart,
     render_outcome_waterfall,
@@ -69,6 +72,15 @@ def main():
     else:
         rounds, filtered_games = rounds_raw, games
 
+    # 卓フィルタ
+    if "lobby" in rounds.columns:
+        lobbies = sorted(rounds["lobby"].dropna().unique())
+        if len(lobbies) > 1:
+            selected_lobby = st.sidebar.multiselect("卓", options=lobbies, default=lobbies)
+            rounds = rounds[rounds["lobby"].isin(selected_lobby)]
+            if "lobby" in filtered_games.columns:
+                filtered_games = filtered_games[filtered_games["lobby"].isin(selected_lobby)]
+
     if rounds.empty:
         st.warning("選択した日付範囲にデータがありません。")
         return
@@ -109,92 +121,141 @@ def main():
 
         st.divider()
 
-        col_left, col_right = st.columns([1, 1])
-        with col_left:
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.subheader("攻撃")
-                st.metric("アガリ打点", f"{int(stats['avg_agari_ten']):,}")
-                st.metric("副露アガリ打点", f"{int(stats['avg_naki_agari_ten']):,}")
-                st.metric("アガリ巡目", f"{stats['avg_agari_turn']:.1f}")
-                st.metric("平均ドラ", f"{stats['avg_dora_count']:.2f}")
-            with c2:
-                st.subheader("守備")
-                st.metric("放銃打点", f"{int(stats['avg_houjuu_ten']):,}")
-                st.metric("被ツモ率", f"{stats['hi_tsumo_rate']:.2f}%")
-                st.metric("被ツモ打点", f"{int(stats['avg_hi_tsumo_ten']):,}")
-            with c3:
-                st.subheader("その他")
-                st.metric("先制リーチ率", f"{stats['first_reach_rate']:.2f}%")
-                st.metric("流局平得", f"{stats['avg_ryuukyoku_score_change']:+.1f}")
-                st.metric("局収支", f"{stats['avg_score_change']:+.1f}")
-                adj = stats["agari_rate"] / 100 * stats["avg_agari_ten"] - stats["houjuu_rate"] / 100 * stats["avg_houjuu_ten"]
-                st.metric("調整打点効率", f"{adj:+,.0f}")
-
-        with col_right:
-            cd1, cd2 = st.columns(2)
-            with cd1:
-                fig = render_score_donut(rounds[rounds["is_agari"]], "agari_ten",
-                    "アガリ打点分布", AGARI_DONUT_COLORS)
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
-            with cd2:
-                fig = render_score_donut(rounds[rounds["is_houjuu"]], "houjuu_ten",
-                    "放銃打点分布", HOUJUU_DONUT_COLORS)
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
+        # 詳細スタッツ
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.subheader("攻撃")
+            st.metric("アガリ打点", f"{int(stats['avg_agari_ten']):,}")
+            st.metric("副露アガリ打点", f"{int(stats['avg_naki_agari_ten']):,}")
+            st.metric("アガリ巡目", f"{stats['avg_agari_turn']:.1f}")
+            st.metric("平均ドラ", f"{stats['avg_dora_count']:.2f}")
+        with c2:
+            st.subheader("守備")
+            st.metric("放銃打点", f"{int(stats['avg_houjuu_ten']):,}")
+            st.metric("被ツモ率", f"{stats['hi_tsumo_rate']:.2f}%")
+            st.metric("被ツモ打点", f"{int(stats['avg_hi_tsumo_ten']):,}")
+        with c3:
+            st.subheader("その他")
+            st.metric("先制リーチ率", f"{stats['first_reach_rate']:.2f}%")
+            st.metric("流局平得", f"{stats['avg_ryuukyoku_score_change']:+.1f}")
+            st.metric("局収支", f"{stats['avg_score_change']:+.1f}")
+            adj = stats["agari_rate"] / 100 * stats["avg_agari_ten"] - stats["houjuu_rate"] / 100 * stats["avg_houjuu_ten"]
+            st.metric("調整打点効率", f"{adj:+,.0f}")
 
         st.divider()
 
-        col_rscore, col_yaku = st.columns(2)
-        with col_rscore:
-            st.subheader("局別平均収支")
-            st.plotly_chart(render_round_score_bar(rounds), use_container_width=True)
-        with col_yaku:
-            st.subheader("役別アガリ回数")
-            yaku_processed = process_yaku_data(yaku_detail, rounds)
-            total_agari = stats["agari_count"]
+        # 打点分布セクション（独立した1行）
+        st.subheader("打点分布")
+        dist_col1, dist_col2, dist_col3 = st.columns([1, 1, 1])
+        with dist_col1:
+            dealer_filter = st.radio("親/子", ["全体", "親", "子"], horizontal=True, key="score_dealer")
+            dist_mode = st.radio("表示", ["打点別", "翻数別"], horizontal=True, key="dist_mode")
+        r_filtered = rounds if dealer_filter == "全体" else rounds[rounds["is_dealer"]] if dealer_filter == "親" else rounds[~rounds["is_dealer"]]
+
+        dist_a, dist_b = st.columns(2)
+        han_colors = ["#C8D8E8", "#A8C8D8", "#88B8C8", "#68A8B8", "#489898", "#288878", "#187858", "#084838"]
+        with dist_a:
+            if dist_mode == "打点別":
+                fig = render_score_donut(r_filtered[r_filtered["is_agari"]], "agari_ten",
+                    "アガリ打点分布", AGARI_DONUT_COLORS)
+            else:
+                fig = render_han_distribution(r_filtered[r_filtered["is_agari"]], "agari_han",
+                    "アガリ翻数分布", han_colors)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+        with dist_b:
+            if dist_mode == "打点別":
+                fig = render_score_donut(r_filtered[r_filtered["is_houjuu"]], "houjuu_ten",
+                    "放銃打点分布", HOUJUU_DONUT_COLORS)
+            else:
+                fig = render_han_distribution(r_filtered[r_filtered["is_houjuu"]], "houjuu_han",
+                    "放銃翻数分布", HOUJUU_DONUT_COLORS)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # 局別平均収支
+        st.subheader("局別平均収支")
+        st.plotly_chart(render_round_score_bar(rounds), use_container_width=True)
+
+        st.divider()
+
+        # 役別アガリ（独立した1行）
+        st.subheader("役別アガリ")
+        yaku_dealer = st.radio("親/子", ["全体", "親", "子"], horizontal=True, key="yaku_dealer")
+        r_yaku = rounds if yaku_dealer == "全体" else rounds[rounds["is_dealer"]] if yaku_dealer == "親" else rounds[~rounds["is_dealer"]]
+        yaku_processed = process_yaku_data(yaku_detail, r_yaku)
+        total_agari = int(r_yaku["is_agari"].sum())
+        col_yaku_chart, col_yaku_table = st.columns([1, 1])
+        with col_yaku_chart:
             fig = render_yaku_bar(yaku_processed, total_agari)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
+        with col_yaku_table:
             if not yaku_processed.empty:
                 yd = yaku_processed.copy()
                 yd["役名"] = yd.apply(lambda r: f"{r['yaku_name']}({int(r['han'])}翻)", axis=1)
-                yd["％"] = (yd["count"] / total_agari * 100).round(2)
+                yd["％"] = (yd["count"] / total_agari * 100).round(2) if total_agari > 0 else 0
+                yd["平均打点"] = yd["avg_ten"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "-")
                 yd = yd.rename(columns={"count": "回数"})
-                st.dataframe(yd[["役名", "回数", "％"]], use_container_width=True, hide_index=True)
+                st.dataframe(yd[["役名", "回数", "％", "平均打点"]], use_container_width=True, hide_index=True)
 
     # --- 状況別分析タブ ---
     with tab_context:
-        # ウォーターフォール + アガリ種別
-        col_waterfall, col_type = st.columns(2)
-        with col_waterfall:
-            st.subheader("局結末別の収支内訳")
-            fig = render_outcome_waterfall(rounds)
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
-        with col_type:
+        # ウォーターフォール
+        st.subheader("局結末別の収支内訳")
+        fig = render_outcome_waterfall(rounds)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # アガリ種別 + 放銃種別
+        col_agari_type, col_houjuu_type = st.columns(2)
+        with col_agari_type:
             st.subheader("アガリ種別")
             fig = render_agari_type_chart(rounds)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
+            agari_data = rounds[rounds["is_agari"]].copy()
+            if not agari_data.empty and "agari_type" in agari_data.columns:
+                type_rows = []
+                for at in ["リーチ", "ダマ", "副露"]:
+                    subset = agari_data[agari_data["agari_type"] == at]
+                    if subset.empty:
+                        continue
+                    type_rows.append({
+                        "種別": at, "回数": len(subset),
+                        "割合": f"{len(subset) / len(agari_data) * 100:.2f}%",
+                        "平均打点": f"{int(subset['agari_ten'].mean()):,}",
+                        "最高打点": f"{int(subset['agari_ten'].max()):,}",
+                        "平均巡目": f"{subset['agari_turn'].mean():.1f}" if subset['agari_turn'].notna().any() else "-",
+                    })
+                if type_rows:
+                    st.dataframe(pd.DataFrame(type_rows), use_container_width=True, hide_index=True)
 
-        agari_data = rounds[rounds["is_agari"]].copy()
-        if not agari_data.empty and "agari_type" in agari_data.columns:
-            type_rows = []
-            for at in ["リーチ", "ダマ", "副露"]:
-                subset = agari_data[agari_data["agari_type"] == at]
-                if subset.empty:
-                    continue
-                type_rows.append({
-                    "種別": at, "回数": len(subset),
-                    "割合": f"{len(subset) / len(agari_data) * 100:.2f}%",
-                    "平均打点": f"{int(subset['agari_ten'].mean()):,}",
-                    "最高打点": f"{int(subset['agari_ten'].max()):,}",
-                    "平均巡目": f"{subset['agari_turn'].mean():.1f}" if subset['agari_turn'].notna().any() else "-",
-                })
-            if type_rows:
-                st.dataframe(pd.DataFrame(type_rows), use_container_width=True, hide_index=True)
+        with col_houjuu_type:
+            st.subheader("放銃種別")
+            fig = render_houjuu_type_chart(rounds)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+            houjuu_data = rounds[rounds["is_houjuu"]].copy()
+            if not houjuu_data.empty and "houjuu_to_type" in houjuu_data.columns:
+                h_rows = []
+                for ht in ["リーチ", "ダマ", "副露"]:
+                    subset = houjuu_data[houjuu_data["houjuu_to_type"] == ht]
+                    if subset.empty:
+                        continue
+                    h_rows.append({
+                        "放銃先": ht, "回数": len(subset),
+                        "割合": f"{len(subset) / len(houjuu_data) * 100:.2f}%",
+                        "平均打点": f"{int(subset['houjuu_ten'].mean()):,}",
+                        "最高打点": f"{int(subset['houjuu_ten'].max()):,}",
+                        "平均巡目": f"{subset['houjuu_turn'].mean():.1f}" if subset['houjuu_turn'].notna().any() else "-",
+                    })
+                if h_rows:
+                    st.dataframe(pd.DataFrame(h_rows), use_container_width=True, hide_index=True)
 
         st.divider()
 
@@ -219,11 +280,11 @@ def main():
         col_axis1, col_axis2, col_metric = st.columns(3)
         with col_axis1:
             row_axis = st.selectbox("行軸（自分の状況）", [
-                "ALL", "親/子", "リーチ/ダマ/副露", "副露回数",
+                "ALL", "親/子", "リーチ/ダマ/副露", "ツモ/出アガリ", "副露回数",
             ])
         with col_axis2:
-            col_axis = st.selectbox("列軸（他家の状況）", [
-                "ALL", "他家リーチ数", "他家副露数",
+            col_axis = st.selectbox("列軸", [
+                "ALL", "ツモ/出アガリ", "リーチ/ダマ/副露", "他家リーチ数", "他家副露数",
             ])
         with col_metric:
             metric = st.selectbox("指標", [
@@ -343,6 +404,8 @@ def main():
         st.plotly_chart(render_cumulative_point_chart(filtered_games), use_container_width=True)
 
         st.subheader("対局結果一覧")
+        DAN_LABELS = {0:"新人",1:"９級",2:"８級",3:"７級",4:"６級",5:"５級",6:"４級",7:"３級",8:"２級",9:"１級",
+            10:"初段",11:"二段",12:"三段",13:"四段",14:"五段",15:"六段",16:"七段",17:"八段",18:"九段",19:"十段",20:"天鳳"}
         display_cols = ["game_date_jst", "seat", "dan", "rate",
             "final_rank", "final_score", "final_point",
             "agari_count", "houjuu_count", "reach_count", "naki_count",
@@ -352,6 +415,8 @@ def main():
         ddf = filtered_games[available].copy()
         if "seat" in ddf.columns:
             ddf["seat"] = ddf["seat"].map(SEAT_LABELS)
+        if "dan" in ddf.columns:
+            ddf["dan"] = ddf["dan"].map(DAN_LABELS)
         ddf = ddf.rename(columns={
             "game_date_jst": "日付", "seat": "席",
             "dan": "段位", "rate": "R",
