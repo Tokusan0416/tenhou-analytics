@@ -56,52 +56,86 @@ def main():
         st.warning("データがありません。mjlogファイルをロードしてください。")
         return
 
-    # ===== サイドバー: 日付フィルタ =====
-    st.sidebar.header("フィルタ")
-    game_ids = rounds_raw["game_id"].unique()
-    date_strs = sorted(set(gid[:8] for gid in game_ids))
-    dates = [pd.to_datetime(d, format="%Y%m%d").date() for d in date_strs]
-
-    if len(dates) >= 2:
-        date_range = st.sidebar.date_input("日付範囲",
-            value=(min(dates), max(dates)), min_value=min(dates), max_value=max(dates))
-        if isinstance(date_range, tuple) and len(date_range) == 2:
-            s_str, e_str = date_range[0].strftime("%Y%m%d"), date_range[1].strftime("%Y%m%d")
-            rounds = rounds_raw[(rounds_raw["game_id"].str[:8] >= s_str) & (rounds_raw["game_id"].str[:8] <= e_str)]
-            filtered_games = games[(games["game_id"].str[:8] >= s_str) & (games["game_id"].str[:8] <= e_str)]
-        else:
-            rounds, filtered_games = rounds_raw, games
+    # 日付カラムを事前追加
+    rounds_raw = rounds_raw.copy()
+    rounds_raw["_date"] = pd.to_datetime(rounds_raw["game_id"].str[:8], format="%Y%m%d")
+    games = games.copy()
+    if "game_date_jst" in games.columns:
+        games["_date"] = pd.to_datetime(games["game_date_jst"])
     else:
-        rounds, filtered_games = rounds_raw, games
+        games["_date"] = pd.to_datetime(games["game_id"].str[:8], format="%Y%m%d")
+
+    # ===== サイドバー =====
+    st.sidebar.header("フィルタ")
+
+    # 期間切り替え
+    today = rounds_raw["_date"].max().date()
+    period_options = ["ALL", "今日", "今週", "今月", "今年", "直近7日", "直近30日"]
+    selected_period = st.sidebar.radio("期間", period_options, horizontal=False)
+
+    def _filter_by_period(df, date_col, period, ref_date):
+        """期間でフィルタし、(当期df, 前期df)を返す。"""
+        if period == "ALL":
+            return df, pd.DataFrame()
+        elif period == "今日":
+            cur = df[df[date_col].dt.date == ref_date]
+            prev_date = ref_date - pd.Timedelta(days=1)
+            prev = df[df[date_col].dt.date == prev_date]
+        elif period == "今週":
+            week_start = ref_date - pd.Timedelta(days=ref_date.weekday())
+            cur = df[df[date_col].dt.date >= week_start]
+            prev_start = week_start - pd.Timedelta(days=7)
+            prev = df[(df[date_col].dt.date >= prev_start) & (df[date_col].dt.date < week_start)]
+        elif period == "今月":
+            cur = df[df[date_col].dt.to_period("M") == pd.Period(ref_date, "M")]
+            prev_month = pd.Period(ref_date, "M") - 1
+            prev = df[df[date_col].dt.to_period("M") == prev_month]
+        elif period == "今年":
+            cur = df[df[date_col].dt.year == ref_date.year]
+            prev = df[df[date_col].dt.year == ref_date.year - 1]
+        elif period == "直近7日":
+            start = ref_date - pd.Timedelta(days=6)
+            cur = df[df[date_col].dt.date >= start]
+            prev_start = start - pd.Timedelta(days=7)
+            prev = df[(df[date_col].dt.date >= prev_start) & (df[date_col].dt.date < start)]
+        elif period == "直近30日":
+            start = ref_date - pd.Timedelta(days=29)
+            cur = df[df[date_col].dt.date >= start]
+            prev_start = start - pd.Timedelta(days=30)
+            prev = df[(df[date_col].dt.date >= prev_start) & (df[date_col].dt.date < start)]
+        else:
+            return df, pd.DataFrame()
+        return cur, prev
+
+    rounds, prev_rounds = _filter_by_period(rounds_raw, "_date", selected_period, today)
+    filtered_games, prev_games = _filter_by_period(games, "_date", selected_period, today)
 
     # 卓フィルタ
     if "lobby" in rounds.columns:
-        lobbies = sorted(rounds["lobby"].dropna().unique())
+        lobbies = sorted(rounds_raw["lobby"].dropna().unique())
         if len(lobbies) > 1:
             selected_lobby = st.sidebar.multiselect("卓", options=lobbies, default=lobbies)
             rounds = rounds[rounds["lobby"].isin(selected_lobby)]
-            if "lobby" in filtered_games.columns:
-                filtered_games = filtered_games[filtered_games["lobby"].isin(selected_lobby)]
+            filtered_games = filtered_games[filtered_games["lobby"].isin(selected_lobby)] if "lobby" in filtered_games.columns else filtered_games
+            prev_rounds = prev_rounds[prev_rounds["lobby"].isin(selected_lobby)] if not prev_rounds.empty and "lobby" in prev_rounds.columns else prev_rounds
+            prev_games = prev_games[prev_games["lobby"].isin(selected_lobby)] if not prev_games.empty and "lobby" in prev_games.columns else prev_games
 
     if rounds.empty:
-        st.warning("選択した日付範囲にデータがありません。")
+        st.warning("選択した期間にデータがありません。")
         return
 
     stats = calc_stats(rounds)
     game_stats = calc_game_stats(filtered_games)
 
-    # 前月比
-    rounds_with_month = rounds.copy()
-    rounds_with_month["_month"] = pd.to_datetime(rounds_with_month["game_id"].str[:8], format="%Y%m%d").dt.to_period("M")
-    months = sorted(rounds_with_month["_month"].unique())
-    prev_stats, prev_game_stats = None, None
-    if len(months) >= 2:
-        prev_rounds = rounds_with_month[rounds_with_month["_month"] == months[-2]]
-        prev_stats = calc_stats(prev_rounds)
-        prev_gids = prev_rounds["game_id"].unique()
-        prev_game_stats = calc_game_stats(filtered_games[filtered_games["game_id"].isin(prev_gids)])
+    # 前回同比
+    prev_stats = calc_stats(prev_rounds) if not prev_rounds.empty else None
+    prev_game_stats = calc_game_stats(prev_games) if not prev_games.empty else None
 
+    # サイドバー情報
+    period_label = selected_period if selected_period != "ALL" else "全期間"
     st.sidebar.metric("対象", f"{game_stats['total_games']}戦 / {stats['total_rounds']}局")
+    if prev_stats:
+        st.sidebar.caption(f"比較: {period_label}の前回同期間 ({prev_stats['total_rounds']}局)")
 
     # ===== KPI =====
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)

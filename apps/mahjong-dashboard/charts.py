@@ -47,7 +47,14 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
         display = f"{val:{fmt}}{suffix}"
         if prev_val is not None:
             delta = val - prev_val
-            col.metric(label, display, delta=f"{delta:+{fmt}}{suffix}",
+            delta_fmt = fmt.replace("+", "")
+            if delta_fmt == "d":
+                delta_str = f"{int(delta):+d}"
+            elif "," in delta_fmt:
+                delta_str = f"{delta:+,.0f}"
+            else:
+                delta_str = f"{delta:+{delta_fmt}}"
+            col.metric(label, display, delta=f"{delta_str}{suffix}",
                        delta_color="inverse" if inverse else "normal")
         else:
             col.metric(label, display)
