@@ -1,0 +1,51 @@
+version: 2
+models:
+- name: fct_tenpai_stats
+  description: テンパイ情報ファクト（1行=1局×1プレイヤー、配牌シャンテン・テンパイ詳細・局結果）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局インデックス
+    tests:
+    - not_null
+  - name: player
+    description: プレイヤーの席番号（0-3）
+    tests:
+    - not_null
+  - name: player_name
+    description: プレイヤー名
+  - name: is_me
+    description: 自分フラグ
+  - name: haipai_shanten
+    description: 配牌時のシャンテン数
+  - name: reached_tenpai
+    description: テンパイに到達したか
+  - name: tenpai_turn
+    description: テンパイ巡目（打牌回数ベース）
+  - name: tenpai_wait_tiles
+    description: テンパイ時の待ち牌（カンマ区切り）
+  - name: tenpai_wait_count
+    description: テンパイ時の待ち枚数
+  - name: tenpai_wait_type
+    description: テンパイ時の待ちの形（両面/カンチャン/ペンチャン/シャボ/単騎/多面）
+  - name: is_agari
+    description: アガリフラグ
+  - name: agari_type
+    description: アガリ種別（リーチ/ダマ/副露）
+  - name: agari_ten
+    description: アガリ点数
+  - name: is_houjuu
+    description: 放銃フラグ
+  - name: houjuu_ten
+    description: 放銃点数
+  - name: is_reach
+    description: リーチフラグ
+  - name: is_naki
+    description: 副露フラグ
+  - name: score_change
+    description: 点数変動（百点単位）
+  - name: houjuu_opponent_wait_type
+    description: 放銃先の待ち形（両面/カンチャン等、非放銃時はNULL）

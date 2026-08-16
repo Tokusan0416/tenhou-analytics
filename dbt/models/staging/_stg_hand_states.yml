@@ -1,0 +1,33 @@
+version: 2
+models:
+- name: stg_hand_states
+  description: 手牌状態のステージング（raw_hand_statesの1:1変換）
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局インデックス
+    tests:
+    - not_null
+  - name: action_index
+    description: アクションインデックス（-1=配牌時）
+    tests:
+    - not_null
+  - name: player
+    description: プレイヤーの席番号（0-3）
+    tests:
+    - not_null
+  - name: action_type
+    description: アクション種別（haipai/discard）
+  - name: shanten
+    description: シャンテン数（-1=和了, 0=テンパイ, 1=イーシャンテン...）
+  - name: is_tenpai
+    description: テンパイフラグ
+  - name: wait_tiles
+    description: 待ち牌（テンパイ時のみ、カンマ区切り）
+  - name: wait_count
+    description: 待ち枚数
+  - name: wait_type
+    description: 待ちの形（両面/カンチャン/ペンチャン/シャボ/単騎/多面）

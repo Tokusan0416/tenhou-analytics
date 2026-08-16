@@ -231,10 +231,12 @@ mainへの直接pushは禁止。`feature/xxx` ブランチでPRを作成し、CI
 - [x] BigQueryローダー / GCS連携
 - [x] dbtプロジェクト（staging/intermediate/warehouse/marts）
 - [x] Streamlitダッシュボード（apps/mahjong-dashboard/）
-- [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
+- [x] dbt schema.yml / テスト整備（persist_docs有効、53テスト、codegen導入）
 - [x] Docker化 / Cloud Runデプロイ
 - [x] CI/CD（GitHub Actions + Workload Identity Federation）
+- [x] 手牌追跡・シャンテン分析・待ち形分析（mahjongライブラリ）
 
 ### 今後のステップ
 
-1. **テンパイ判定/待ち形/シャンテン数** — mahjongライブラリで実装可能、手牌追跡+計算が必要
+1. **待ち形判定の精度改善** — HandCalculatorによる面子分解ベースに置き換え
+2. **SHUFFLE（牌山生成）** — 牌山を再現し残り枚数・ツモ期待値を計算

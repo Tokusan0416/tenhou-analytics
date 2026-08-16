@@ -10,6 +10,7 @@ import time
 
 from google.cloud import bigquery
 
+from tenhou_analytics.parser.hand_tracker import track_all_hands
 from tenhou_analytics.parser.mjlog import (
     AgariResult,
     Game,
@@ -282,6 +283,21 @@ RAW_ACTIONS_SCHEMA = [
 ]
 
 
+RAW_HAND_STATES_SCHEMA = [
+    bigquery.SchemaField("game_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("round_index", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("action_index", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("player", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("action_type", "STRING"),
+    bigquery.SchemaField("hand_tiles", "STRING"),
+    bigquery.SchemaField("shanten", "INTEGER"),
+    bigquery.SchemaField("is_tenpai", "BOOLEAN"),
+    bigquery.SchemaField("wait_tiles", "STRING"),
+    bigquery.SchemaField("wait_count", "INTEGER"),
+    bigquery.SchemaField("wait_type", "STRING"),
+]
+
+
 def _ensure_table(
     client: bigquery.Client,
     table_id: str,
@@ -314,15 +330,36 @@ def load_game_to_bigquery(
     games_table_id = _get_table_id(project, dataset, "raw_games")
     rounds_table_id = _get_table_id(project, dataset, "raw_rounds")
     actions_table_id = _get_table_id(project, dataset, "raw_actions")
+    hand_states_table_id = _get_table_id(project, dataset, "raw_hand_states")
 
     _ensure_table(client, games_table_id, RAW_GAMES_SCHEMA)
     _ensure_table(client, rounds_table_id, RAW_ROUNDS_SCHEMA)
     _ensure_table(client, actions_table_id, RAW_ACTIONS_SCHEMA)
+    _ensure_table(client, hand_states_table_id, RAW_HAND_STATES_SCHEMA)
 
     # データ変換
     games_rows = [_game_to_raw_games_row(game)]
     rounds_rows = _game_to_raw_rounds_rows(game)
     actions_rows = _game_to_raw_actions_rows(game)
+
+    # 手牌追跡
+    hand_states = track_all_hands(game)
+    hand_states_rows = [
+        {
+            "game_id": hs.game_id,
+            "round_index": hs.round_index,
+            "action_index": hs.action_index,
+            "player": hs.player,
+            "action_type": hs.action_type,
+            "hand_tiles": ",".join(hs.hand_tiles) if hs.hand_tiles else None,
+            "shanten": hs.shanten,
+            "is_tenpai": hs.is_tenpai,
+            "wait_tiles": ",".join(hs.wait_tiles) if hs.wait_tiles else None,
+            "wait_count": hs.wait_count,
+            "wait_type": hs.wait_type if hs.wait_type else None,
+        }
+        for hs in hand_states
+    ]
 
     # 重複チェック: 同一game_idが既に存在する場合はスキップ
     try:
@@ -341,7 +378,7 @@ def load_game_to_bigquery(
     except (Exception, StopIteration):  # noqa: BLE001
         count = 0
     if count > 0:
-        return {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0}
+        return {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0, "raw_hand_states": 0}
 
     # ロード（テーブル作成直後はStreaming Insertが失敗する場合があるためリトライ）
     def _insert_with_retry(table_id, rows, max_retries=3):
@@ -357,8 +394,13 @@ def load_game_to_bigquery(
     errors_games = _insert_with_retry(games_table_id, games_rows)
     errors_rounds = _insert_with_retry(rounds_table_id, rounds_rows)
     errors_actions = _insert_with_retry(actions_table_id, actions_rows)
+    errors_hand_states = (
+        _insert_with_retry(hand_states_table_id, hand_states_rows)
+        if hand_states_rows
+        else []
+    )
 
-    all_errors = errors_games + errors_rounds + errors_actions
+    all_errors = errors_games + errors_rounds + errors_actions + errors_hand_states
     if all_errors:
         raise RuntimeError(f"BigQuery insert errors: {all_errors}")
 
@@ -366,6 +408,7 @@ def load_game_to_bigquery(
         "raw_games": len(games_rows),
         "raw_rounds": len(rounds_rows),
         "raw_actions": len(actions_rows),
+        "raw_hand_states": len(hand_states_rows),
     }
 
 
@@ -376,7 +419,7 @@ def load_all_games(
     dataset: str = DEFAULT_DATASET,
 ) -> dict[str, int]:
     """複数のGameオブジェクトをまとめてロードする。"""
-    totals = {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0}
+    totals = {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0, "raw_hand_states": 0}
     for game in games:
         result = load_game_to_bigquery(game, project=project, dataset=dataset)
         for key in totals:

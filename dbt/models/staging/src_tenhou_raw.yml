@@ -44,3 +44,19 @@ sources:
             tests:
               - accepted_values:
                   values: ['draw', 'discard', 'chi', 'pon', 'ankan', 'daiminkan', 'kakan', 'reach', 'nuki', 'dora', 'bye']
+
+      - name: raw_hand_states
+        description: "手牌状態（1行=1巡目×1プレイヤー）"
+        columns:
+          - name: game_id
+            description: "対局ID"
+            tests: [not_null]
+          - name: round_index
+            description: "局のインデックス"
+            tests: [not_null]
+          - name: action_index
+            description: "アクションのインデックス（-1=配牌時）"
+            tests: [not_null]
+          - name: player
+            description: "プレイヤーの席番号（0-3）"
+            tests: [not_null]
