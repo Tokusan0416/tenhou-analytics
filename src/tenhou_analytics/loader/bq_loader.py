@@ -111,6 +111,7 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                     "agari_aka_dora_count": sum(
                         y.han for y in r.result.yaku if y.id == 54
                     ),
+                    "agari_rank": r.result.agari_rank,
                     "score_change0": r.result.score_changes[0]
                     if len(r.result.score_changes) > 0
                     else 0,
@@ -143,6 +144,7 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                     "agari_dora_count": None,
                     "agari_ura_dora_count": None,
                     "agari_aka_dora_count": None,
+                    "agari_rank": None,
                     "score_change0": r.result.score_changes[0]
                     if len(r.result.score_changes) > 0
                     else 0,
@@ -178,6 +180,9 @@ def _game_to_raw_actions_rows(game: Game) -> list[dict]:
                     "player": a.player,
                     "tile": a.tile,
                     "turn": a.turn,
+                    "called_tile": a.called_tile,
+                    "from_who": a.from_who,
+                    "naki_tiles": ",".join(a.naki_tiles) if a.naki_tiles else None,
                 }
             )
     return rows
@@ -254,6 +259,7 @@ RAW_ROUNDS_SCHEMA = [
     bigquery.SchemaField("agari_dora_count", "INTEGER"),
     bigquery.SchemaField("agari_ura_dora_count", "INTEGER"),
     bigquery.SchemaField("agari_aka_dora_count", "INTEGER"),
+    bigquery.SchemaField("agari_rank", "INTEGER"),
     bigquery.SchemaField("score_change0", "INTEGER"),
     bigquery.SchemaField("score_change1", "INTEGER"),
     bigquery.SchemaField("score_change2", "INTEGER"),
@@ -270,6 +276,9 @@ RAW_ACTIONS_SCHEMA = [
     bigquery.SchemaField("player", "INTEGER"),
     bigquery.SchemaField("tile", "STRING"),
     bigquery.SchemaField("turn", "INTEGER"),
+    bigquery.SchemaField("called_tile", "STRING"),
+    bigquery.SchemaField("from_who", "INTEGER"),
+    bigquery.SchemaField("naki_tiles", "STRING"),
 ]
 
 

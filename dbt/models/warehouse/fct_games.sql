@@ -52,6 +52,7 @@ SELECT
     ,seat
     ,player_name
     ,dan
+    ,{{ dan_label('dan') }} AS dan_label
     ,rate
     ,seat = my_seat AS is_me
     ,final_score
