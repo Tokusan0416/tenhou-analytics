@@ -49,6 +49,28 @@ def load_tenpai_stats():
     """)
 
 
+def load_hand_states_by_turn():
+    """巡目別のシャンテン数データ（全プレイヤー分、自分のみ）。"""
+    return query_df("""
+        SELECT
+            hs.game_id
+            ,hs.round_index
+            ,hs.action_index
+            ,hs.shanten
+            ,hs.is_tenpai
+            ,hs.action_type
+            ,ROW_NUMBER() OVER (
+                PARTITION BY hs.game_id, hs.round_index, hs.player
+                ORDER BY hs.action_index
+            ) AS turn
+        FROM `tenhou_staging.stg_hand_states` AS hs
+        INNER JOIN `tenhou_warehouse.fct_games` AS g
+            ON hs.game_id = g.game_id AND hs.player = g.seat
+        WHERE g.is_me
+        ORDER BY hs.game_id, hs.round_index, hs.action_index
+    """)
+
+
 def load_yaku_detail():
     return query_df("""
         SELECT rps.game_id, rps.round_index, rps.round_number,
@@ -87,6 +109,8 @@ def calc_stats(df: pd.DataFrame) -> dict | None:
         "avg_houjuu_ten": df.loc[df["is_houjuu"], "houjuu_ten"].mean() if houjuu_n else 0,
         "reach_rate": reach_n / n * 100,
         "first_reach_rate": df["is_first_reach"].sum() / n * 100,
+        "reach_agari_count": int((df["is_reach"] & df["is_agari"]).sum()),
+        "reach_agari_rate": (df["is_reach"] & df["is_agari"]).sum() / reach_n * 100 if reach_n else 0,
         "naki_rate": naki_n / n * 100,
         "avg_dora_count": df.loc[df["is_agari"], "dora_count"].fillna(0).mean() if agari_n else 0,
         "avg_ryuukyoku_score_change": df.loc[df["result_type"] == "ryuukyoku", "score_change"].mean() if (df["result_type"] == "ryuukyoku").any() else 0,
@@ -135,6 +159,8 @@ def stats_to_row(label: str, s: dict, gs: dict | None = None) -> dict:
     row["放銃打点"] = f"{int(s['avg_houjuu_ten']):,}"
     row["リーチ率"] = f"{s['reach_rate']:.2f}%"
     row["リーチ回数"] = s["reach_count"]
+    row["リーチ時アガリ率"] = f"{s['reach_agari_rate']:.2f}%"
+    row["リーチ時アガリ回数"] = s["reach_agari_count"]
     row["副露率"] = f"{s['naki_rate']:.2f}%"
     row["副露回数"] = s["naki_count"]
     row["被ツモ率"] = f"{s['hi_tsumo_rate']:.2f}%"
