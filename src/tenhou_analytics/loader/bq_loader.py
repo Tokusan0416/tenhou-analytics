@@ -294,7 +294,6 @@ RAW_HAND_STATES_SCHEMA = [
     bigquery.SchemaField("is_tenpai", "BOOLEAN"),
     bigquery.SchemaField("wait_tiles", "STRING"),
     bigquery.SchemaField("wait_count", "INTEGER"),
-    bigquery.SchemaField("wait_type", "STRING"),
 ]
 
 
@@ -356,7 +355,6 @@ def load_game_to_bigquery(
             "is_tenpai": hs.is_tenpai,
             "wait_tiles": ",".join(hs.wait_tiles) if hs.wait_tiles else None,
             "wait_count": hs.wait_count,
-            "wait_type": hs.wait_type if hs.wait_type else None,
         }
         for hs in hand_states
     ]

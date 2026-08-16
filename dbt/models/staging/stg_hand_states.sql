@@ -12,10 +12,10 @@ SELECT
     ,action_index
     ,player
     ,action_type
+    ,hand_tiles
     ,shanten
     ,is_tenpai
     ,wait_tiles
     ,wait_count
-    ,wait_type
 FROM
     source

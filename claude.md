@@ -115,6 +115,6 @@ tests/                         # テスト
 - [x] Cloud Runデプロイ（手動）
 - [x] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [x] dbt実行の自動化
-- [x] テンパイ判定/待ち形/シャンテン数（mahjongライブラリ、手牌追跡エンジン実装済み）
-- [ ] 待ち形判定の精度改善（HandCalculatorによる面子分解ベースに置き換え）
+- [x] テンパイ判定/シャンテン数（mahjongライブラリ、手牌追跡エンジン実装済み）
+- [ ] 待ち形判定（面子分解ベースの正確な実装が必要、副露後の短い手牌への対応が課題）
 - [ ] SHUFFLE（牌山生成）の実装

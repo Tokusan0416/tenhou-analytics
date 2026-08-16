@@ -21,6 +21,8 @@ models:
     - not_null
   - name: action_type
     description: アクション種別（haipai/discard）
+  - name: hand_tiles
+    description: 手牌の牌名リスト（カンマ区切り）
   - name: shanten
     description: シャンテン数（-1=和了, 0=テンパイ, 1=イーシャンテン...）
   - name: is_tenpai
@@ -29,5 +31,3 @@ models:
     description: 待ち牌（テンパイ時のみ、カンマ区切り）
   - name: wait_count
     description: 待ち枚数
-  - name: wait_type
-    description: 待ちの形（両面/カンチャン/ペンチャン/シャボ/単騎/多面）
