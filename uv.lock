@@ -912,6 +912,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mahjong"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/44/89c67394c97ee060b86f02868c819c2c63cf199fda40f6c47eee08d1818d/mahjong-2.0.0.tar.gz", hash = "sha256:08c424be257d6aebdf320e90fd8ee11628bf7a463860490ad007162bb62f22be", size = 52824, upload-time = "2026-04-02T00:06:37.435Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/02/687973dca9ab7372a8db48752fd3350a6b9c36b7807efdeb55e1ebf3779c/mahjong-2.0.0-py3-none-any.whl", hash = "sha256:52f63a8dfda5a9e81542642ed315f0e1e8626c0d324c8d8eabb3418ae7d43870", size = 86029, upload-time = "2026-04-02T00:06:35.741Z" },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1871,6 +1880,7 @@ dependencies = [
     { name = "db-dtypes" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-storage" },
+    { name = "mahjong" },
     { name = "pandas" },
     { name = "plotly" },
     { name = "pyarrow" },
@@ -1892,6 +1902,7 @@ requires-dist = [
     { name = "db-dtypes", specifier = ">=1.7.1" },
     { name = "google-cloud-bigquery", specifier = ">=3.20.0" },
     { name = "google-cloud-storage", specifier = ">=2.10.0" },
+    { name = "mahjong", specifier = ">=2.0.0" },
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "plotly", specifier = ">=7.0.0rc0" },
     { name = "pyarrow", specifier = ">=14.0" },

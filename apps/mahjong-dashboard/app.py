@@ -36,6 +36,7 @@ from data import (
     load_all_round_player_stats,
     load_game_results,
     load_round_player_stats,
+    load_tenpai_stats,
     load_yaku_detail,
     process_yaku_data,
 )
@@ -51,6 +52,7 @@ def main():
     all_rounds = load_all_round_player_stats()
     games = load_game_results()
     yaku_detail = load_yaku_detail()
+    tenpai_data = load_tenpai_stats()
 
     if rounds_raw.empty:
         st.warning("データがありません。mjlogファイルをロードしてください。")
@@ -141,8 +143,8 @@ def main():
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)
 
     # ===== タブ =====
-    tab_overview, tab_context, tab_trend, tab_wind, tab_dealer, tab_seat, tab_round, tab_rank, tab_naki, tab_history = st.tabs(
-        ["総合", "状況別分析", "推移", "東場/南場", "親/子", "起家別", "局別", "順位状況別", "副露回数別", "対局履歴"]
+    tab_overview, tab_context, tab_shanten, tab_wait, tab_trend, tab_wind, tab_dealer, tab_seat, tab_round, tab_rank, tab_naki, tab_history = st.tabs(
+        ["総合", "状況別分析", "シャンテン分析", "待ち形分析", "推移", "東場/南場", "親/子", "起家別", "局別", "順位状況別", "副露回数別", "対局履歴"]
     )
 
     # --- 総合タブ ---
@@ -339,6 +341,114 @@ def main():
         context_table = render_agari_context_table(rounds)
         if context_table is not None:
             st.dataframe(context_table, use_container_width=True, hide_index=True)
+
+    # --- シャンテン分析タブ ---
+    with tab_shanten:
+        if tenpai_data.empty:
+            st.info("テンパイデータがありません。")
+        else:
+            # 配牌シャンテン分布
+            st.subheader("配牌シャンテン数分布")
+            sh_counts = tenpai_data["haipai_shanten"].value_counts().sort_index()
+            fig = go.Figure(data=[go.Bar(
+                x=[f"{int(s)}シャンテン" for s in sh_counts.index],
+                y=sh_counts.values,
+                marker_color=COLORS["primary"],
+                text=[f"{v}局" for v in sh_counts.values],
+                textposition="auto",
+            )])
+            fig.update_layout(yaxis_title="局数", height=350, margin=dict(t=30, b=50))
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.divider()
+
+            # 配牌シャンテン別スタッツ
+            st.subheader("配牌シャンテン別スタッツ")
+            sh_rows = []
+            for sh in sorted(tenpai_data["haipai_shanten"].unique()):
+                subset = tenpai_data[tenpai_data["haipai_shanten"] == sh]
+                n = len(subset)
+                tenpai_s = subset[subset["reached_tenpai"]]
+                agari_s = subset[subset["is_agari"]]
+                houjuu_s = subset[subset["is_houjuu"]]
+                reach_s = subset[subset["is_reach"]]
+                sh_rows.append({
+                    "配牌シャンテン": f"{int(sh)}シャンテン",
+                    "局数": n,
+                    "テンパイ率": f"{len(tenpai_s) / n * 100:.2f}%",
+                    "テンパイ回数": len(tenpai_s),
+                    "リーチ率": f"{len(reach_s) / n * 100:.2f}%",
+                    "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
+                    "アガリ打点": f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-",
+                    "放銃率": f"{len(houjuu_s) / n * 100:.2f}%",
+                    "局収支": f"{subset['score_change'].mean():+.1f}",
+                    "平均テンパイ巡目": f"{tenpai_s['tenpai_turn'].mean():.1f}" if not tenpai_s.empty and tenpai_s['tenpai_turn'].notna().any() else "-",
+                })
+            st.dataframe(pd.DataFrame(sh_rows), use_container_width=True, hide_index=True)
+
+    # --- 待ち形分析タブ ---
+    with tab_wait:
+        if tenpai_data.empty:
+            st.info("テンパイデータがありません。")
+        else:
+            # アガリ時の待ち形
+            st.subheader("アガリ時の待ち形")
+            agari_tenpai = tenpai_data[tenpai_data["is_agari"] & tenpai_data["reached_tenpai"]]
+            agari_group = st.radio("グループ", ["ALL", "リーチ", "ダマ", "副露"], horizontal=True, key="agari_wait_group")
+            if agari_group == "リーチ":
+                agari_tenpai = agari_tenpai[agari_tenpai["is_reach"]]
+            elif agari_group == "ダマ":
+                agari_tenpai = agari_tenpai[~agari_tenpai["is_reach"] & ~agari_tenpai["is_naki"]]
+            elif agari_group == "副露":
+                agari_tenpai = agari_tenpai[agari_tenpai["is_naki"]]
+
+            if not agari_tenpai.empty:
+                aw_rows = []
+                for wt in ["両面", "カンチャン", "ペンチャン", "シャボ", "単騎", "多面"]:
+                    subset = agari_tenpai[agari_tenpai["tenpai_wait_type"] == wt]
+                    if subset.empty:
+                        continue
+                    aw_rows.append({
+                        "待ち形": wt,
+                        "アガリ回数": len(subset),
+                        "割合": f"{len(subset) / len(agari_tenpai) * 100:.2f}%",
+                        "平均打点": f"{int(subset['agari_ten'].mean()):,}",
+                        "平均待ち枚数": f"{subset['tenpai_wait_count'].mean():.1f}",
+                    })
+                if aw_rows:
+                    st.dataframe(pd.DataFrame(aw_rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("該当するアガリデータがありません。")
+
+            st.divider()
+
+            # 放銃時の相手の待ち形
+            st.subheader("放銃時の相手の待ち形")
+            houjuu_wait = tenpai_data[tenpai_data["is_houjuu"]].copy()
+            houjuu_group = st.radio("グループ", ["ALL", "リーチ", "ダマ", "副露"], horizontal=True, key="houjuu_wait_group")
+            if houjuu_group == "リーチ":
+                houjuu_wait = houjuu_wait[houjuu_wait["is_reach"]]
+            elif houjuu_group == "ダマ":
+                houjuu_wait = houjuu_wait[~houjuu_wait["is_reach"] & ~houjuu_wait["is_naki"]]
+            elif houjuu_group == "副露":
+                houjuu_wait = houjuu_wait[houjuu_wait["is_naki"]]
+
+            if not houjuu_wait.empty and "houjuu_opponent_wait_type" in houjuu_wait.columns:
+                hw_rows = []
+                for wt in ["両面", "カンチャン", "ペンチャン", "シャボ", "単騎", "多面"]:
+                    subset = houjuu_wait[houjuu_wait["houjuu_opponent_wait_type"] == wt]
+                    if subset.empty:
+                        continue
+                    hw_rows.append({
+                        "相手の待ち形": wt,
+                        "放銃回数": len(subset),
+                        "割合": f"{len(subset) / len(houjuu_wait) * 100:.2f}%",
+                        "平均放銃打点": f"{int(subset['houjuu_ten'].mean()):,}",
+                    })
+                if hw_rows:
+                    st.dataframe(pd.DataFrame(hw_rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("該当する放銃データがありません。")
 
     # --- 推移タブ ---
     with tab_trend:

@@ -40,6 +40,15 @@ def load_game_results():
     return query_df("SELECT * FROM `tenhou_marts.mart_game_results` ORDER BY game_order")
 
 
+def load_tenpai_stats():
+    """テンパイ情報（配牌シャンテン・待ち形等）。"""
+    return query_df("""
+        SELECT *
+        FROM `tenhou_warehouse.fct_tenpai_stats`
+        WHERE is_me
+    """)
+
+
 def load_yaku_detail():
     return query_df("""
         SELECT rps.game_id, rps.round_index, rps.round_number,
