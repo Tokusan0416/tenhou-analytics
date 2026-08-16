@@ -35,20 +35,16 @@ WITH
                 PARTITION BY game_id
                 ORDER BY final_score DESC
             ) AS final_rank
-            ,ROW_NUMBER() OVER (
-                PARTITION BY seat = my_seat
-                ORDER BY game_id
-            ) AS game_order
         FROM
             games_unpivot
     )
 
 SELECT
-    game_id
-    ,game_date
-    ,CAST(game_date AS DATE) AS game_date_jst
-    ,EXTRACT(HOUR FROM game_date) AS game_hour
-    ,game_order
+    r.game_id
+    ,r.game_date
+    ,CAST(r.game_date AS DATE) AS game_date_jst
+    ,EXTRACT(HOUR FROM r.game_date) AS game_hour
+    ,igo.game_order
     ,seat
     ,player_name
     ,dan
@@ -65,4 +61,5 @@ SELECT
     ,lobby
     ,num_rounds
 FROM
-    ranked
+    ranked AS r
+    LEFT JOIN {{ ref('int_game_order') }} AS igo ON r.game_id = igo.game_id
