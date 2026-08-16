@@ -35,6 +35,7 @@ from data import (
     grouped_stats_table,
     load_all_round_player_stats,
     load_game_results,
+    load_hand_states_by_turn,
     load_round_player_stats,
     load_tenpai_stats,
     load_yaku_detail,
@@ -53,6 +54,7 @@ def main():
     games = load_game_results()
     yaku_detail = load_yaku_detail()
     tenpai_data = load_tenpai_stats()
+    hand_states = load_hand_states_by_turn()
 
     if rounds_raw.empty:
         st.warning("データがありません。mjlogファイルをロードしてください。")
@@ -372,12 +374,15 @@ def main():
                 agari_s = subset[subset["is_agari"]]
                 houjuu_s = subset[subset["is_houjuu"]]
                 reach_s = subset[subset["is_reach"]]
+                reach_agari_s = subset[subset["is_reach"] & subset["is_agari"]]
                 sh_rows.append({
                     "配牌シャンテン": f"{int(sh)}シャンテン",
                     "局数": n,
                     "テンパイ率": f"{len(tenpai_s) / n * 100:.2f}%",
                     "テンパイ回数": len(tenpai_s),
                     "リーチ率": f"{len(reach_s) / n * 100:.2f}%",
+                    "リーチ時アガリ率": f"{len(reach_agari_s) / len(reach_s) * 100:.2f}%" if len(reach_s) > 0 else "-",
+                    "リーチ時アガリ回数": len(reach_agari_s),
                     "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
                     "アガリ打点": f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-",
                     "放銃率": f"{len(houjuu_s) / n * 100:.2f}%",
@@ -385,6 +390,108 @@ def main():
                     "平均テンパイ巡目": f"{tenpai_s['tenpai_turn'].mean():.1f}" if not tenpai_s.empty and tenpai_s['tenpai_turn'].notna().any() else "-",
                 })
             st.dataframe(pd.DataFrame(sh_rows), use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            # 巡目別テンパイ率 + 平均シャンテン推移
+            if not hand_states.empty:
+                st.subheader("巡目別シャンテン推移・テンパイ率")
+                # 巡目ごとの集計
+                hs = hand_states[hand_states["action_type"] == "discard"].copy()
+                if not hs.empty:
+                    max_turn = min(int(hs["turn"].max()), 18)
+                    turn_data = []
+                    for t in range(1, max_turn + 1):
+                        t_data = hs[hs["turn"] == t]
+                        if t_data.empty:
+                            continue
+                        # その巡目までにテンパイしたか（累積）
+                        cum_tenpai = hs[hs["turn"] <= t].groupby(["game_id", "round_index"]).agg(
+                            ever_tenpai=("is_tenpai", "max")
+                        ).reset_index()
+                        turn_data.append({
+                            "巡目": t,
+                            "平均シャンテン": t_data["shanten"].mean(),
+                            "テンパイ率": t_data["is_tenpai"].mean() * 100,
+                            "累積テンパイ率": cum_tenpai["ever_tenpai"].mean() * 100,
+                            "局数": len(t_data),
+                        })
+
+                    if turn_data:
+                        tdf = pd.DataFrame(turn_data)
+                        col_sh_chart, col_tp_chart = st.columns(2)
+
+                        with col_sh_chart:
+                            st.caption("巡目別 平均シャンテン数")
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=tdf["巡目"], y=tdf["平均シャンテン"],
+                                mode="lines+markers", line=dict(color=COLORS["primary"], width=2),
+                                marker=dict(size=6),
+                                hovertemplate="巡目%{x}<br>平均シャンテン: %{y:.2f}<extra></extra>",
+                            ))
+                            fig.add_hline(y=0, line_dash="dash", line_color=COLORS["positive"], opacity=0.5,
+                                          annotation_text="テンパイ", annotation_position="top left")
+                            fig.update_layout(xaxis_title="巡目", yaxis_title="平均シャンテン数",
+                                height=350, margin=dict(t=30, b=50))
+                            st.plotly_chart(fig, use_container_width=True)
+
+                        with col_tp_chart:
+                            st.caption("巡目別 累積テンパイ到達率")
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=tdf["巡目"], y=tdf["累積テンパイ率"],
+                                mode="lines+markers", line=dict(color=COLORS["positive"], width=2),
+                                marker=dict(size=6), name="累積テンパイ率",
+                                hovertemplate="巡目%{x}<br>累積テンパイ率: %{y:.1f}%<extra></extra>",
+                            ))
+                            fig.add_trace(go.Scatter(
+                                x=tdf["巡目"], y=tdf["テンパイ率"],
+                                mode="lines+markers", line=dict(color=COLORS["secondary"], width=1, dash="dot"),
+                                marker=dict(size=4), name="その巡目テンパイ率",
+                                hovertemplate="巡目%{x}<br>テンパイ率: %{y:.1f}%<extra></extra>",
+                            ))
+                            fig.update_layout(xaxis_title="巡目", yaxis_title="%",
+                                height=350, margin=dict(t=30, b=50),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                            st.plotly_chart(fig, use_container_width=True)
+
+            st.divider()
+
+            # テンパイ巡目別アガリ率・放銃率
+            st.subheader("テンパイ巡目別 アガリ率・放銃率")
+            tenpai_reached = tenpai_data[tenpai_data["reached_tenpai"]].copy()
+            if not tenpai_reached.empty and "tenpai_turn" in tenpai_reached.columns:
+                tenpai_reached["tenpai_bin"] = pd.cut(
+                    tenpai_reached["tenpai_turn"],
+                    bins=[0, 3, 6, 9, 12, 15, 18, 100],
+                    labels=["1-3巡", "4-6巡", "7-9巡", "10-12巡", "13-15巡", "16-18巡", "19巡以降"],
+                )
+                tb_rows = []
+                for tb in ["1-3巡", "4-6巡", "7-9巡", "10-12巡", "13-15巡", "16-18巡", "19巡以降"]:
+                    subset = tenpai_reached[tenpai_reached["tenpai_bin"] == tb]
+                    if subset.empty:
+                        continue
+                    n = len(subset)
+                    agari_s = subset[subset["is_agari"]]
+                    houjuu_s = subset[subset["is_houjuu"]]
+                    reach_s = subset[subset["is_reach"]]
+                    reach_agari_s = subset[subset["is_reach"] & subset["is_agari"]]
+                    tb_rows.append({
+                        "初回テンパイ巡目": tb,
+                        "テンパイ回数": n,
+                        "リーチ率": f"{len(reach_s) / n * 100:.2f}%",
+                        "リーチ時アガリ率": f"{len(reach_agari_s) / len(reach_s) * 100:.2f}%" if len(reach_s) > 0 else "-",
+                        "リーチ時アガリ回数": len(reach_agari_s),
+                        "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
+                        "アガリ回数": len(agari_s),
+                        "アガリ打点": f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-",
+                        "放銃率": f"{len(houjuu_s) / n * 100:.2f}%",
+                        "放銃回数": len(houjuu_s),
+                        "局収支": f"{subset['score_change'].mean():+.1f}",
+                    })
+                if tb_rows:
+                    st.dataframe(pd.DataFrame(tb_rows), use_container_width=True, hide_index=True)
 
     # --- 推移タブ ---
     with tab_trend:
