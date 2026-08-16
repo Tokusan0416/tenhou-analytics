@@ -44,6 +44,9 @@ class Yaku:
     han: int
 
 
+AGARI_RANK_NAMES = {0: "", 1: "満貫", 2: "跳満", 3: "倍満", 4: "三倍満", 5: "役満"}
+
+
 @dataclass
 class AgariResult:
     """和了結果。"""
@@ -57,6 +60,7 @@ class AgariResult:
     han: int  # 合計翻数
     ten: int  # 点数
     fu: int  # 符
+    agari_rank: int  # 和了ランク（0=なし, 1=満貫, 2=跳満, 3=倍満, 4=三倍満, 5=役満）
     score_changes: list[int]  # 各プレイヤーの点数変動
     dora: list[str]
     ura_dora: list[str]
@@ -75,10 +79,16 @@ class RyuukyokuResult:
 class Action:
     """巡目内のアクション。"""
 
-    type: str  # "draw", "discard", "chi", "pon", "kan", "reach"
+    type: str  # "draw", "discard", "chi", "pon", "ankan", "daiminkan", "kakan", "reach", "dora", "bye"
     player: int  # 席番号
-    tile: str | None  # 牌名（鳴きの場合はNone）
+    tile: str | None  # 牌名
     turn: int  # 巡目
+    # 鳴き詳細（Nタグの場合のみ）
+    called_tile: str | None = None  # 鳴かれた牌
+    from_who: int | None = (
+        None  # 鳴き元の相対位置（1=下家, 2=対面, 3=上家, 0=自分(暗槓)）
+    )
+    naki_tiles: list[str] | None = None  # 鳴きに含まれる全牌
 
 
 @dataclass
@@ -142,22 +152,78 @@ def _parse_yaku(yaku_csv: str) -> list[Yaku]:
     return result
 
 
-def _decode_naki_type(m_value: int) -> str:
-    """鳴きのm属性値から鳴きの種類を判定。"""
-    if m_value & 0x0004:
-        return "chi"
-    if m_value & 0x0008:
-        return "pon"
-    if m_value & 0x0010:
-        return "kakan"
-    if m_value & 0x0020:
-        # 北抜きの可能性もあるが四麻では通常なし
-        return "nuki"
-    # 暗槓 or 大明槓: kui(下位2bit)が0なら暗槓、1-3なら大明槓
+def _decode_naki(m_value: int) -> dict:
+    """鳴きのm属性値を詳細デコード。
+
+    Returns:
+        dict: type, kui(相対位置), called_tile(牌名), tiles(全牌名リスト)
+    """
     kui = m_value & 0x0003
-    if kui == 0:
-        return "ankan"
-    return "daiminkan"
+
+    if m_value & 0x0004:
+        # 順子（チー）
+        t = (m_value & 0xFC00) >> 10
+        base_kind = t // 3  # 0-20: 1m~7m, 1p~7p, 1s~7s
+        called_idx = t % 3  # 0,1,2: 最小/中/最大のどれが鳴かれた牌か
+        suit = base_kind // 7  # 0=m, 1=p, 2=s
+        num = base_kind % 7  # 0-6 → 1-7
+        r0 = (m_value & 0x0018) >> 3
+        r1 = (m_value & 0x0060) >> 5
+        r2 = (m_value & 0x0180) >> 7
+        tile_ids = [
+            (suit * 9 + num) * 4 + r0,
+            (suit * 9 + num + 1) * 4 + r1,
+            (suit * 9 + num + 2) * 4 + r2,
+        ]
+        tiles = [tile_id_to_name(tid) for tid in tile_ids]
+        called_tile = tiles[called_idx]
+        return {"type": "chi", "kui": kui, "called_tile": called_tile, "tiles": tiles}
+
+    if m_value & 0x0008:
+        # 刻子（ポン）
+        t = (m_value & 0xFE00) >> 9
+        kind = t // 3
+        called_in_set = t % 3
+        unused = (m_value & 0x0060) >> 5
+        tile_ids = []
+        idx = 0
+        for r in range(4):
+            if r == unused:
+                continue
+            tile_ids.append(kind * 4 + r)
+            idx += 1
+        tiles = [tile_id_to_name(tid) for tid in tile_ids]
+        called_tile = tiles[called_in_set] if called_in_set < len(tiles) else tiles[0]
+        return {"type": "pon", "kui": kui, "called_tile": called_tile, "tiles": tiles}
+
+    if m_value & 0x0010:
+        # 加槓
+        t = (m_value & 0xFE00) >> 9
+        kind = t // 3
+        added = (m_value & 0x0060) >> 5
+        tile_ids = [kind * 4 + r for r in range(4)]
+        tiles = [tile_id_to_name(tid) for tid in tile_ids]
+        called_tile = tile_id_to_name(kind * 4 + added)
+        return {"type": "kakan", "kui": kui, "called_tile": called_tile, "tiles": tiles}
+
+    if m_value & 0x0020:
+        # 北抜き
+        tile_id = (m_value & 0xFF00) >> 8
+        return {
+            "type": "nuki",
+            "kui": 0,
+            "called_tile": tile_id_to_name(tile_id),
+            "tiles": [tile_id_to_name(tile_id)],
+        }
+
+    # 大明槓・暗槓
+    tile_id = (m_value & 0xFF00) >> 8
+    kind = tile_id // 4
+    tile_ids = [kind * 4 + r for r in range(4)]
+    tiles = [tile_id_to_name(tid) for tid in tile_ids]
+    called_tile = tile_id_to_name(tile_id)
+    naki_type = "ankan" if kui == 0 else "daiminkan"
+    return {"type": naki_type, "kui": kui, "called_tile": called_tile, "tiles": tiles}
 
 
 def _extract_game_id(filepath: Path) -> str:
@@ -276,11 +342,38 @@ def parse_mjlog(filepath: str | Path) -> Game:
         if tag == "N":
             who = int(elem.get("who", "0"))
             m_value = int(elem.get("m", "0"))
-            naki_type = _decode_naki_type(m_value)
+            naki = _decode_naki(m_value)
             current_round.actions.append(
                 Action(
-                    type=naki_type,
+                    type=naki["type"],
                     player=who,
+                    tile=None,
+                    turn=0,
+                    called_tile=naki["called_tile"],
+                    from_who=naki["kui"],
+                    naki_tiles=naki["tiles"],
+                )
+            )
+
+        # 槓ドラ
+        if tag == "DORA":
+            dora_tile_id = int(elem.get("hai", "0"))
+            current_round.actions.append(
+                Action(
+                    type="dora",
+                    player=-1,
+                    tile=tile_id_to_name(dora_tile_id),
+                    turn=0,
+                )
+            )
+
+        # 切断
+        if tag == "BYE":
+            bye_who = int(elem.get("who", "0"))
+            current_round.actions.append(
+                Action(
+                    type="bye",
+                    player=bye_who,
                     tile=None,
                     turn=0,
                 )
@@ -393,8 +486,21 @@ def _parse_agari(elem: ET.Element) -> AgariResult:
     ten_values = _parse_int_list(elem.get("ten", ""))
     fu = ten_values[0] if len(ten_values) > 0 else 0
     score = ten_values[1] if len(ten_values) > 1 else 0
+    agari_rank = ten_values[2] if len(ten_values) > 2 else 0
 
+    # 通常役
     yaku_list = _parse_yaku(elem.get("yaku", ""))
+    # 役満（yakuman属性がある場合はyaku属性がないことがある）
+    yakuman_csv = elem.get("yakuman")
+    if yakuman_csv:
+        for yaku_id in _parse_int_list(yakuman_csv):
+            yaku_list.append(
+                Yaku(
+                    id=yaku_id,
+                    name=YAKU_NAMES.get(yaku_id, f"不明({yaku_id})"),
+                    han=13,  # 役満は13翻扱い
+                )
+            )
     total_han = sum(y.han for y in yaku_list)
 
     sc = _parse_int_list(elem.get("sc", ""))
@@ -413,6 +519,7 @@ def _parse_agari(elem: ET.Element) -> AgariResult:
         han=total_han,
         ten=score,
         fu=fu,
+        agari_rank=agari_rank,
         score_changes=score_changes,
         dora=dora,
         ura_dora=ura_dora,

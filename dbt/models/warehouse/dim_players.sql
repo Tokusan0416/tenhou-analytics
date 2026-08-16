@@ -26,6 +26,7 @@ WITH
 SELECT
     player_name
     ,max_dan
+    ,{{ dan_label('max_dan') }} AS max_dan_label
     ,max_rate
     ,game_count
 FROM

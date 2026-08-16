@@ -1,0 +1,26 @@
+{% macro dan_label(dan_column) %}
+    CASE {{ dan_column }}
+        WHEN 0 THEN '新人'
+        WHEN 1 THEN '９級'
+        WHEN 2 THEN '８級'
+        WHEN 3 THEN '７級'
+        WHEN 4 THEN '６級'
+        WHEN 5 THEN '５級'
+        WHEN 6 THEN '４級'
+        WHEN 7 THEN '３級'
+        WHEN 8 THEN '２級'
+        WHEN 9 THEN '１級'
+        WHEN 10 THEN '初段'
+        WHEN 11 THEN '二段'
+        WHEN 12 THEN '三段'
+        WHEN 13 THEN '四段'
+        WHEN 14 THEN '五段'
+        WHEN 15 THEN '六段'
+        WHEN 16 THEN '七段'
+        WHEN 17 THEN '八段'
+        WHEN 18 THEN '九段'
+        WHEN 19 THEN '十段'
+        WHEN 20 THEN '天鳳'
+        ELSE '不明'
+    END
+{% endmacro %}

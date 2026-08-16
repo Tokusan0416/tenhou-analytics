@@ -43,4 +43,4 @@ sources:
             description: "アクション種別"
             tests:
               - accepted_values:
-                  values: ['draw', 'discard', 'chi', 'pon', 'ankan', 'daiminkan', 'kakan', 'reach', 'nuki']
+                  values: ['draw', 'discard', 'chi', 'pon', 'ankan', 'daiminkan', 'kakan', 'reach', 'nuki', 'dora', 'bye']
