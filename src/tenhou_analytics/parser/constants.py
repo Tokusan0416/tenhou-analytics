@@ -116,32 +116,20 @@ YAKU_NAMES: dict[int, str] = {
 }
 
 # GO type ビットフラグ解析
-GAME_TYPE_FLAGS: dict[str, int] = {
-    "sanma": 0x10,  # 三人麻雀
-    "tokutou": 0x00,  # 特東(東風戦) - デフォルト
-    "tonnansen": 0x08,  # 東南戦
-    "ippan": 0x00,  # 一般 - デフォルト
-    "joukyuu": 0x01,  # 上級卓
-    "tokujou": 0x02,  # 特上卓
-    "houou": 0x04,  # 鳳凰卓
-    "soku": 0x40,  # 速
-    "no_red": 0x02,  # 赤なし(三麻時)
-    "no_aka": 0x20,  # 赤なし(四麻時)
-}
+# BIT1=0x001:対人戦, BIT2=0x002:赤ナシ, BIT3=0x004:喰ナシ, BIT4=0x008:東南,
+# BIT5=0x010:三麻, BIT6=0x020:特上, BIT7=0x040:速, BIT8=0x080:上級
+# 卓判定: (w&0x0020)>>4 | (w&0x0080)>>7 → 0=一般, 1=上級, 2=特上, 3=鳳凰
+LOBBY_NAMES = {0: "一般", 1: "上級卓", 2: "特上卓", 3: "鳳凰卓"}
 
 
 def parse_game_type(type_value: int) -> dict[str, str | bool]:
     """GOタグのtype値からゲーム種別情報を抽出。"""
+    lobby_idx = (type_value & 0x0020) >> 4 | (type_value & 0x0080) >> 7
     return {
-        "is_sanma": bool(type_value & 0x10),
-        "is_tonnansen": bool(type_value & 0x08),
-        "is_soku": bool(type_value & 0x40),
-        "is_no_red": bool(type_value & 0x20),
-        "lobby": "鳳凰卓"
-        if type_value & 0x04
-        else "特上卓"
-        if type_value & 0x02
-        else "上級卓"
-        if type_value & 0x01
-        else "一般",
+        "is_sanma": bool(type_value & 0x010),
+        "is_tonnansen": bool(type_value & 0x008),
+        "is_soku": bool(type_value & 0x040),
+        "is_no_red": bool(type_value & 0x002),
+        "is_no_kui": bool(type_value & 0x004),
+        "lobby": LOBBY_NAMES.get(lobby_idx, "不明"),
     }
