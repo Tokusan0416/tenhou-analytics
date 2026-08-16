@@ -12,6 +12,7 @@ from charts import (
     render_agari_type_chart,
     render_cross_analysis_heatmap,
     render_cumulative_point_chart,
+    render_dan_chart,
     render_han_distribution,
     render_houjuu_type_chart,
     render_kpi_metrics,
@@ -20,6 +21,7 @@ from charts import (
     render_radar_chart,
     render_rank_distribution,
     render_rank_trend,
+    render_rate_chart,
     render_round_score_bar,
     render_score_donut,
     render_trend_chart,
@@ -402,6 +404,14 @@ def main():
     with tab_history:
         st.subheader("累積ポイント推移")
         st.plotly_chart(render_cumulative_point_chart(filtered_games), use_container_width=True)
+
+        col_rate, col_dan = st.columns(2)
+        with col_rate:
+            st.subheader("Rate推移")
+            st.plotly_chart(render_rate_chart(filtered_games), use_container_width=True)
+        with col_dan:
+            st.subheader("段位推移")
+            st.plotly_chart(render_dan_chart(filtered_games), use_container_width=True)
 
         st.subheader("対局結果一覧")
         DAN_LABELS = {0:"新人",1:"９級",2:"８級",3:"７級",4:"６級",5:"５級",6:"４級",7:"３級",8:"２級",9:"１級",
