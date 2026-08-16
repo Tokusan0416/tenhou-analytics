@@ -40,7 +40,6 @@ WITH
             ,hs.player
             ,hs.wait_tiles
             ,hs.wait_count
-            ,hs.wait_type
         FROM
             {{ ref('stg_hand_states') }} AS hs
             INNER JOIN first_tenpai AS ft
@@ -82,7 +81,6 @@ SELECT
     ,dc.discard_turn AS tenpai_turn
     ,ftd.wait_tiles AS tenpai_wait_tiles
     ,ftd.wait_count AS tenpai_wait_count
-    ,ftd.wait_type AS tenpai_wait_type
 
     -- 局の結果（fct_round_player_statsから）
     ,rps.is_agari
@@ -93,9 +91,6 @@ SELECT
     ,rps.is_reach
     ,rps.is_naki
     ,rps.score_change
-
-    -- 放銃先の待ち形（和了者のテンパイ情報）
-    ,winner_tenpai.wait_type AS houjuu_opponent_wait_type
 
 FROM
     haipai_shanten AS h
@@ -109,11 +104,3 @@ FROM
         ON h.game_id = ftd.game_id AND h.round_index = ftd.round_index AND h.player = ftd.player
     LEFT JOIN discard_counts AS dc
         ON ft.game_id = dc.game_id AND ft.round_index = dc.round_index AND ft.player = dc.player AND ft.first_tenpai_action_index = dc.action_index
-    -- 放銃時: 和了者のテンパイ情報を取得
-    LEFT JOIN {{ ref('fct_rounds') }} AS fr
-        ON h.game_id = fr.game_id AND h.round_index = fr.round_index
-    LEFT JOIN first_tenpai_detail AS winner_tenpai
-        ON h.game_id = winner_tenpai.game_id
-        AND h.round_index = winner_tenpai.round_index
-        AND fr.agari_winner = winner_tenpai.player
-        AND rps.is_houjuu

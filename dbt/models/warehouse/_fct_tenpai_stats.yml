@@ -29,8 +29,6 @@ models:
     description: テンパイ時の待ち牌（カンマ区切り）
   - name: tenpai_wait_count
     description: テンパイ時の待ち枚数
-  - name: tenpai_wait_type
-    description: テンパイ時の待ちの形（両面/カンチャン/ペンチャン/シャボ/単騎/多面）
   - name: is_agari
     description: アガリフラグ
   - name: agari_type
@@ -47,5 +45,3 @@ models:
     description: 副露フラグ
   - name: score_change
     description: 点数変動（百点単位）
-  - name: houjuu_opponent_wait_type
-    description: 放銃先の待ち形（両面/カンチャン等、非放銃時はNULL）
