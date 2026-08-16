@@ -56,7 +56,7 @@ SELECT
     ,o3.final_rank AS opponent3_rank
     -- 累積ポイント（対局順に累積）
     ,SUM(g.final_point) OVER (
-        ORDER BY g.game_id
+        ORDER BY g.game_order
         ROWS UNBOUNDED PRECEDING
     ) AS cumulative_point
 FROM

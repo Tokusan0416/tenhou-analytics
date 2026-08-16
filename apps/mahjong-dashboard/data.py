@@ -37,7 +37,7 @@ def load_all_round_player_stats():
 
 
 def load_game_results():
-    return query_df("SELECT * FROM `tenhou_marts.mart_game_results` ORDER BY game_id")
+    return query_df("SELECT * FROM `tenhou_marts.mart_game_results` ORDER BY game_order")
 
 
 def load_yaku_detail():

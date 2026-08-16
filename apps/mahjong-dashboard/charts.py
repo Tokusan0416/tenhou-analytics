@@ -140,6 +140,56 @@ def render_cumulative_point_chart(games):
     return fig
 
 
+def render_rate_chart(games):
+    """Rate推移チャート。"""
+    df = games.copy()
+    df["game_number"] = range(1, len(df) + 1)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df["game_number"], y=df["rate"],
+        mode="lines+markers", line=dict(color=COLORS["secondary"], width=2),
+        marker=dict(size=6, color=COLORS["secondary"]),
+        hovertemplate="第%{x}戦<br>R: %{y:.2f}<extra></extra>",
+    ))
+    fig.update_layout(
+        xaxis_title="対局数", yaxis_title="Rate", height=300,
+        margin=dict(t=30, b=50),
+    )
+    return fig
+
+
+def render_dan_chart(games):
+    """段位推移チャート。"""
+    DAN_LABELS = {0:"新人",1:"９級",2:"８級",3:"７級",4:"６級",5:"５級",6:"４級",7:"３級",8:"２級",9:"１級",
+        10:"初段",11:"二段",12:"三段",13:"四段",14:"五段",15:"六段",16:"七段",17:"八段",18:"九段",19:"十段",20:"天鳳"}
+
+    df = games.copy()
+    df["game_number"] = range(1, len(df) + 1)
+    df["dan_name"] = df["dan"].map(DAN_LABELS)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df["game_number"], y=df["dan"],
+        mode="lines+markers", line=dict(color=COLORS["purple"], width=2),
+        marker=dict(size=6, color=COLORS["purple"]),
+        text=df["dan_name"],
+        hovertemplate="第%{x}戦<br>段位: %{text}<extra></extra>",
+    ))
+    # Y軸を段位名で表示
+    dan_vals = sorted(df["dan"].unique())
+    fig.update_layout(
+        xaxis_title="対局数", yaxis_title="段位", height=300,
+        margin=dict(t=30, b=50),
+        yaxis=dict(
+            tickmode="array",
+            tickvals=dan_vals,
+            ticktext=[DAN_LABELS.get(d, str(d)) for d in dan_vals],
+        ),
+    )
+    return fig
+
+
 def render_score_donut(rounds, col, title, colors):
     data = rounds[rounds[col].notna()][col]
     if data.empty:
