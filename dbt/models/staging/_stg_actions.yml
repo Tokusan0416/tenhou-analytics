@@ -23,3 +23,9 @@ models:
     description: '牌名（例: 1m, 東, 0p）'
   - name: turn
     description: 巡目
+  - name: called_tile
+    description: 鳴かれた牌（鳴きアクション時のみ）
+  - name: from_who
+    description: 鳴き元の相対位置（0=自分(暗槓), 1=下家, 2=対面, 3=上家）
+  - name: naki_tiles
+    description: 鳴きに含まれる全牌（カンマ区切り）

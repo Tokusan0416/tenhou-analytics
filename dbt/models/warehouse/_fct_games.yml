@@ -53,3 +53,5 @@ models:
     description: 卓の種別（一般/上級/特上/鳳凰）
   - name: num_rounds
     description: 局数
+  - name: dan_label
+    description: 段位名（新人〜天鳳）

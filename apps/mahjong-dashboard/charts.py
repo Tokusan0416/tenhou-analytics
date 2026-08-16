@@ -321,6 +321,63 @@ def render_agari_type_chart(rounds: pd.DataFrame):
     return fig
 
 
+def render_houjuu_type_chart(rounds: pd.DataFrame):
+    """放銃種別（放銃先がリーチ/ダマ/副露）のバーチャート。"""
+    houjuu = rounds[rounds["is_houjuu"]].copy()
+    if houjuu.empty or "houjuu_to_type" not in houjuu.columns:
+        return None
+
+    type_order = ["リーチ", "ダマ", "副露"]
+    type_colors = [COLORS["negative"], COLORS["purple"], COLORS["secondary"]]
+
+    agg = houjuu.groupby("houjuu_to_type").agg(
+        count=("houjuu_ten", "size"),
+        avg_ten=("houjuu_ten", "mean"),
+        max_ten=("houjuu_ten", "max"),
+    ).reindex(type_order).dropna(subset=["count"]).reset_index()
+
+    total = agg["count"].sum()
+    agg["pct"] = (agg["count"] / total * 100).round(2)
+
+    fig = go.Figure()
+    for _, row in agg.iterrows():
+        color = type_colors[type_order.index(row["houjuu_to_type"])] if row["houjuu_to_type"] in type_order else COLORS["neutral"]
+        fig.add_trace(go.Bar(
+            x=[row["houjuu_to_type"]], y=[row["count"]],
+            name=row["houjuu_to_type"], marker_color=color,
+            text=f"{row['pct']:.1f}%",
+            textposition="auto", textfont=dict(size=14),
+            hovertemplate=f"{row['houjuu_to_type']}<br>{int(row['count'])}回 ({row['pct']:.2f}%)<br>"
+                          f"平均: {int(row['avg_ten']):,}点<br>最高: {int(row['max_ten']):,}点<extra></extra>",
+        ))
+    fig.update_layout(yaxis_title="回数", height=350, margin=dict(t=30, b=50), showlegend=False)
+    return fig
+
+
+def render_han_distribution(rounds: pd.DataFrame, col: str, title: str, colors: list[str]):
+    """翻数分布のドーナツチャート。"""
+    data = rounds[rounds[col].notna()][col]
+    if data.empty:
+        return None
+    bins = [1, 2, 3, 4, 5, 6, 8, 13, float("inf")]
+    labels = ["1翻", "2翻", "3翻", "4翻", "5翻(満貫)", "6-7翻(跳満)", "8-12翻(倍満)", "13翻〜(役満)"]
+    counts = pd.cut(data, bins=bins, labels=labels, right=False).value_counts().reindex(labels).fillna(0)
+    counts = counts[counts > 0]
+
+    if counts.empty:
+        return None
+
+    fig = go.Figure(data=[go.Pie(
+        labels=counts.index, values=counts.values, hole=0.45,
+        marker_colors=colors[:len(counts)],
+        textinfo="label+percent", textposition="outside",
+        hovertemplate="%{label}<br>%{value}回 (%{percent})<extra></extra>",
+    )])
+    fig.update_layout(title=dict(text=title, x=0.5, font=dict(size=14)),
+        height=350, margin=dict(t=50, b=30, l=10, r=10), showlegend=False)
+    return fig
+
+
 def render_outcome_waterfall(rounds: pd.DataFrame):
     """局の結末別ウォーターフォールチャート: どこでポイントを稼ぎ/失っているか。"""
     outcomes = [
@@ -414,12 +471,21 @@ def render_cross_analysis_heatmap(rounds: pd.DataFrame, row_axis: str, col_axis:
     elif row_axis == "リーチ/ダマ/副露":
         df["row_group"] = df.apply(
             lambda r: "リーチ" if r["is_reach"] else "副露" if r["is_naki"] else "ダマ", axis=1)
+    elif row_axis == "ツモ/出アガリ":
+        df["row_group"] = df.apply(
+            lambda r: "ツモ" if r.get("is_tsumo") is True else "出アガリ" if r.get("is_tsumo") is False else "非アガリ", axis=1)
     elif row_axis == "副露回数":
         df["row_group"] = df["naki_count"].clip(upper=3).apply(lambda x: f"{x}回" if x < 3 else "3回以上")
 
     # 列軸のグルーピング
     if col_axis == "ALL":
         df["col_group"] = "全体"
+    elif col_axis == "ツモ/出アガリ":
+        df["col_group"] = df.apply(
+            lambda r: "ツモ" if r.get("is_tsumo") is True else "出アガリ" if r.get("is_tsumo") is False else "非アガリ", axis=1)
+    elif col_axis == "リーチ/ダマ/副露":
+        df["col_group"] = df.apply(
+            lambda r: "リーチ" if r["is_reach"] else "副露" if r["is_naki"] else "ダマ", axis=1)
     elif col_axis == "他家リーチ数":
         df["col_group"] = df["opponents_reach_count"].clip(upper=2).apply(lambda x: f"{x}人" if x < 2 else "2人以上")
     elif col_axis == "他家副露数":

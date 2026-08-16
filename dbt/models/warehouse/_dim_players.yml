@@ -14,3 +14,5 @@ models:
     description: 最高レート
   - name: game_count
     description: 出場対局数
+  - name: max_dan_label
+    description: 最高段位名（新人〜天鳳）

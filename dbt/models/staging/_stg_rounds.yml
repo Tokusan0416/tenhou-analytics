@@ -84,3 +84,5 @@ models:
     description: 流局理由（yao9/reach4/ron3/kan4等、通常流局はNULL）
   - name: tenpai_players
     description: 流局時テンパイだったプレイヤーの席番号（カンマ区切り）
+  - name: agari_rank
+    description: 和了ランク（0=なし, 1=満貫, 2=跳満, 3=倍満, 4=三倍満, 5=役満）
