@@ -136,6 +136,10 @@ WITH
                 WHEN r.agari_winner = rp.player_seat THEN r.agari_yaku
                 WHEN r.agari_winner2 = rp.player_seat THEN r.agari_yaku2
             END AS agari_yaku
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_rank
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_rank2
+            END AS agari_rank
             ,CASE WHEN r.agari_winner = rp.player_seat THEN agt.agari_turn END AS agari_turn
 
             -- ドラ
