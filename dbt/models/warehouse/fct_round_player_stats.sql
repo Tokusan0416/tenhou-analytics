@@ -114,10 +114,16 @@ WITH
             ,rp.lobby
             ,rp.result_type
 
-            -- アガリ
-            ,COALESCE(r.agari_winner = rp.player_seat, FALSE) AS is_agari
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_is_tsumo END AS is_tsumo
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_ten END AS agari_ten
+            -- アガリ（ダブロンの2人目も考慮）
+            ,COALESCE(r.agari_winner = rp.player_seat OR r.agari_winner2 = rp.player_seat, FALSE) AS is_agari
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_is_tsumo
+                WHEN r.agari_winner2 = rp.player_seat THEN FALSE
+            END AS is_tsumo
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_ten
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_ten2
+            END AS agari_ten
             ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_han END AS agari_han
             ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_fu END AS agari_fu
             ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_yaku END AS agari_yaku
@@ -128,10 +134,16 @@ WITH
             ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_ura_dora_count END AS ura_dora_count
             ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_aka_dora_count END AS aka_dora_count
 
-            -- 放銃
-            ,COALESCE(r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat, FALSE) AS is_houjuu
+            -- 放銃（ダブロンの場合は合計点数）
+            ,COALESCE(
+                r.result_type = 'agari'
+                AND r.agari_from_who = rp.player_seat
+                AND r.agari_winner != rp.player_seat
+                AND (r.agari_winner2 IS NULL OR r.agari_winner2 != rp.player_seat)
+            , FALSE) AS is_houjuu
             ,CASE
-                WHEN r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat THEN r.agari_ten
+                WHEN r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat
+                THEN COALESCE(r.agari_ten, 0) + COALESCE(r.agari_ten2, 0)
             END AS houjuu_ten
             ,CASE
                 WHEN r.result_type = 'agari' AND r.agari_from_who = rp.player_seat AND r.agari_winner != rp.player_seat THEN agt_winner.agari_turn
