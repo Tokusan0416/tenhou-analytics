@@ -493,6 +493,103 @@ def main():
                 if tb_rows:
                     st.dataframe(pd.DataFrame(tb_rows), use_container_width=True, hide_index=True)
 
+            st.divider()
+
+            # 待ち枚数分析
+            st.subheader("テンパイ時の待ち枚数分析")
+            if not tenpai_reached.empty and "tenpai_wait_count" in tenpai_reached.columns:
+                wait_group = st.radio("グループ", ["ALL", "リーチ", "ダマ", "副露"], horizontal=True, key="wait_count_group")
+                wr = tenpai_reached.copy()
+                if wait_group == "リーチ":
+                    wr = wr[wr["is_reach"]]
+                elif wait_group == "ダマ":
+                    wr = wr[~wr["is_reach"] & ~wr["is_naki"]]
+                elif wait_group == "副露":
+                    wr = wr[wr["is_naki"]]
+
+                if not wr.empty:
+                    has_visible = "tenpai_wait_count_visible" in wr.columns
+
+                    # 山残り枚数別スタッツ
+                    st.caption("山残り枚数別")
+                    wc_rows = []
+                    for wc in sorted(wr["tenpai_wait_count"].unique()):
+                        subset = wr[wr["tenpai_wait_count"] == wc]
+                        if subset.empty:
+                            continue
+                        n = len(subset)
+                        agari_s = subset[subset["is_agari"]]
+                        houjuu_s = subset[subset["is_houjuu"]]
+                        rd = {
+                            "山残り枚数": f"{int(wc)}枚",
+                            "テンパイ回数": n,
+                            "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
+                            "アガリ回数": len(agari_s),
+                            "アガリ打点": f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-",
+                            "放銃率": f"{len(houjuu_s) / n * 100:.2f}%",
+                            "放銃回数": len(houjuu_s),
+                            "局収支": f"{subset['score_change'].mean():+.1f}",
+                        }
+                        wc_rows.append(rd)
+                    if wc_rows:
+                        st.dataframe(pd.DataFrame(wc_rows), use_container_width=True, hide_index=True)
+
+                    # 見た目枚数別スタッツ
+                    if has_visible:
+                        st.caption("見た目枚数別")
+                        wv_rows = []
+                        for wv in sorted(wr["tenpai_wait_count_visible"].unique()):
+                            subset = wr[wr["tenpai_wait_count_visible"] == wv]
+                            if subset.empty:
+                                continue
+                            n = len(subset)
+                            agari_s = subset[subset["is_agari"]]
+                            houjuu_s = subset[subset["is_houjuu"]]
+                            wv_rows.append({
+                                "見た目枚数": f"{int(wv)}枚",
+                                "テンパイ回数": n,
+                                "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
+                                "アガリ回数": len(agari_s),
+                                "アガリ打点": f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-",
+                                "放銃率": f"{len(houjuu_s) / n * 100:.2f}%",
+                                "放銃回数": len(houjuu_s),
+                                "局収支": f"{subset['score_change'].mean():+.1f}",
+                            })
+                        if wv_rows:
+                            st.dataframe(pd.DataFrame(wv_rows), use_container_width=True, hide_index=True)
+
+                    # テンパイ巡目 × 山残り枚数 のクロステーブル
+                    st.caption("テンパイ巡目 × 山残り枚数")
+                    wr_cross = wr.copy()
+                    wr_cross["巡目帯"] = pd.cut(
+                        wr_cross["tenpai_turn"],
+                        bins=[0, 6, 12, 18, 100],
+                        labels=["1-6巡", "7-12巡", "13-18巡", "19巡以降"],
+                    )
+                    wr_cross["枚数帯"] = pd.cut(
+                        wr_cross["tenpai_wait_count"],
+                        bins=[-1, 2, 5, 8, 100],
+                        labels=["1-2枚", "3-5枚", "6-8枚", "9枚以上"],
+                    )
+                    cross_rows = []
+                    for turn_bin in ["1-6巡", "7-12巡", "13-18巡", "19巡以降"]:
+                        for count_bin in ["1-2枚", "3-5枚", "6-8枚", "9枚以上"]:
+                            subset = wr_cross[(wr_cross["巡目帯"] == turn_bin) & (wr_cross["枚数帯"] == count_bin)]
+                            if len(subset) < 2:
+                                continue
+                            n = len(subset)
+                            agari_s = subset[subset["is_agari"]]
+                            cross_rows.append({
+                                "巡目": turn_bin,
+                                "山残り枚数": count_bin,
+                                "テンパイ回数": n,
+                                "アガリ率": f"{len(agari_s) / n * 100:.2f}%",
+                                "アガリ回数": len(agari_s),
+                                "局収支": f"{subset['score_change'].mean():+.1f}",
+                            })
+                    if cross_rows:
+                        st.dataframe(pd.DataFrame(cross_rows), use_container_width=True, hide_index=True)
+
     # --- 推移タブ ---
     with tab_trend:
         period = st.radio("集計単位", ["日別", "月別", "年別"], horizontal=True)

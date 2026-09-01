@@ -30,4 +30,6 @@ models:
   - name: wait_tiles
     description: 待ち牌（テンパイ時のみ、カンマ区切り）
   - name: wait_count
-    description: 待ち枚数
+    description: 待ち枚数（山残り枚数、全員の手牌・河・副露・ドラ表示を考慮）
+  - name: wait_count_visible
+    description: 待ち枚数（見た目枚数、自分の手牌・河・副露・ドラ表示のみ）

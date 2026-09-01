@@ -29,6 +29,7 @@ class HandState:
     is_tenpai: bool
     wait_tiles: list[str] = field(default_factory=list)
     wait_count: int = 0  # 山残り枚数（全員の手牌・河・副露・ドラ表示を考慮）
+    wait_count_visible: int = 0  # 見た目枚数（自分の手牌・河・副露・ドラ表示のみ）
 
 
 def _34_array_to_names(arr: list[int]) -> list[str]:
@@ -51,36 +52,41 @@ def _name_to_kind(tile_name: str) -> int | None:
 def _calc_waits(
     hand: list[int],
     all_known: list[int],
+    visible: list[int],
     shanten_val: int,
     tile_count: int,
     shanten_calc: Shanten,
-) -> tuple[list[str], int]:
-    """テンパイ時の待ち牌と山残り枚数を算出。
+) -> tuple[list[str], int, int]:
+    """テンパイ時の待ち牌と枚数を算出。
 
     Args:
         hand: 自分の手牌(34種)
         all_known: 全ての見えている牌(全員の手牌+河+副露+ドラ表示)(34種)
+        visible: 自分から見える牌(自分の手牌+河+副露+ドラ表示)(34種)
         shanten_val: シャンテン数
         tile_count: 手牌枚数
         shanten_calc: Shantenインスタンス
+
+    Returns:
+        (待ち牌リスト, 山残り枚数, 見た目枚数)
     """
     if shanten_val != 0 or tile_count not in {1, 4, 7, 10, 13}:
-        return [], 0
+        return [], 0, 0
     waits: list[str] = []
     wait_count = 0
+    wait_count_visible = 0
     for i in range(34):
         if hand[i] < 4:
             hand[i] += 1
             try:
                 if shanten_calc.calculate_shanten(hand) == -1:
                     waits.append(TILE_TYPES[i])
-                    # 山残り枚数 = 4 - 全ての見えている牌
-                    remaining = 4 - all_known[i]
-                    wait_count += max(0, remaining)
+                    wait_count += max(0, 4 - all_known[i])
+                    wait_count_visible += max(0, 4 - visible[i])
             except ValueError:
                 pass
             hand[i] -= 1
-    return waits, wait_count
+    return waits, wait_count, wait_count_visible
 
 
 def _build_all_known(
@@ -101,6 +107,18 @@ def _build_all_known(
     for i in range(34):
         known[i] += dora_indicators[i]
     return known
+
+
+def _build_visible(
+    my_hand: list[int],
+    discards: list[int],
+    dora_indicators: list[int],
+) -> list[int]:
+    """自分から見える牌の34種配列を構築（自分の手牌+全員の河+副露+ドラ表示）。"""
+    vis = [0] * 34
+    for i in range(34):
+        vis[i] = my_hand[i] + discards[i] + dora_indicators[i]
+    return vis
 
 
 def track_hands_for_round(
@@ -142,7 +160,8 @@ def track_hands_for_round(
             sh = -2
 
         all_known = _build_all_known(hands_34, discards, dora_indicators)
-        waits, wcount = _calc_waits(arr, all_known, sh, tile_count, shanten_calc)
+        visible = _build_visible(arr, discards, dora_indicators)
+        waits, wcount, wcount_vis = _calc_waits(arr, all_known, visible, sh, tile_count, shanten_calc)
         results.append(
             HandState(
                 game_id=game_id,
@@ -155,6 +174,7 @@ def track_hands_for_round(
                 is_tenpai=sh == 0,
                 wait_tiles=waits,
                 wait_count=wcount,
+                wait_count_visible=wcount_vis,
             )
         )
 
@@ -185,8 +205,9 @@ def track_hands_for_round(
                     sh = -2
 
                 all_known = _build_all_known(hands_34, discards, dora_indicators)
-                waits, wcount = _calc_waits(
-                    arr, all_known, sh, tile_count, shanten_calc
+                visible = _build_visible(arr, discards, dora_indicators)
+                waits, wcount, wcount_vis = _calc_waits(
+                    arr, all_known, visible, sh, tile_count, shanten_calc
                 )
                 results.append(
                     HandState(
@@ -200,6 +221,7 @@ def track_hands_for_round(
                         is_tenpai=sh == 0,
                         wait_tiles=waits,
                         wait_count=wcount,
+                        wait_count_visible=wcount_vis,
                     )
                 )
 
