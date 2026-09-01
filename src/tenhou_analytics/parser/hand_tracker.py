@@ -161,7 +161,9 @@ def track_hands_for_round(
 
         all_known = _build_all_known(hands_34, discards, dora_indicators)
         visible = _build_visible(arr, discards, dora_indicators)
-        waits, wcount, wcount_vis = _calc_waits(arr, all_known, visible, sh, tile_count, shanten_calc)
+        waits, wcount, wcount_vis = _calc_waits(
+            arr, all_known, visible, sh, tile_count, shanten_calc
+        )
         results.append(
             HandState(
                 game_id=game_id,

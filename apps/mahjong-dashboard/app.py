@@ -676,7 +676,7 @@ def main():
     # --- 副露回数別タブ ---
     with tab_naki:
         rn = rounds.copy()
-        rn["naki_group"] = rn["naki_count"].clip(upper=3).apply(lambda x: f"{x}回" if x < 3 else "3回以上")
+        rn["naki_group"] = rn["naki_count"].clip(upper=4).apply(lambda x: f"{int(x)}回")
         st.subheader("副露回数別スタッツ比較")
         st.dataframe(grouped_stats_table(rn, "naki_group"), use_container_width=True, hide_index=True)
         fig = grouped_bar_chart(rn, "naki_group",
