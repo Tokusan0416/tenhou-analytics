@@ -132,6 +132,37 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                     if is_double_ron
                     else None,
                     "agari_ten2": r.agari_results[1].ten if is_double_ron else None,
+                    "agari_from_who2": r.agari_results[1].from_who
+                    if is_double_ron
+                    else None,
+                    "agari_fu2": r.agari_results[1].fu if is_double_ron else None,
+                    "agari_han2": r.agari_results[1].han if is_double_ron else None,
+                    "agari_yaku2": ",".join(
+                        f"{y.name}:{y.han}" for y in r.agari_results[1].yaku
+                    )
+                    if is_double_ron
+                    else None,
+                    "agari_winning_tile2": r.agari_results[1].winning_tile
+                    if is_double_ron
+                    else None,
+                    "agari_dora_count2": sum(
+                        y.han for y in r.agari_results[1].yaku if y.id == 52
+                    )
+                    if is_double_ron
+                    else None,
+                    "agari_ura_dora_count2": sum(
+                        y.han for y in r.agari_results[1].yaku if y.id == 53
+                    )
+                    if is_double_ron
+                    else None,
+                    "agari_aka_dora_count2": sum(
+                        y.han for y in r.agari_results[1].yaku if y.id == 54
+                    )
+                    if is_double_ron
+                    else None,
+                    "agari_rank2": r.agari_results[1].agari_rank
+                    if is_double_ron
+                    else None,
                     "score_change0": sc[0],
                     "score_change1": sc[1],
                     "score_change2": sc[2],
@@ -160,6 +191,15 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                     "is_double_ron": False,
                     "agari_winner2": None,
                     "agari_ten2": None,
+                    "agari_from_who2": None,
+                    "agari_fu2": None,
+                    "agari_han2": None,
+                    "agari_yaku2": None,
+                    "agari_winning_tile2": None,
+                    "agari_dora_count2": None,
+                    "agari_ura_dora_count2": None,
+                    "agari_aka_dora_count2": None,
+                    "agari_rank2": None,
                     "score_change0": r.result.score_changes[0]
                     if len(r.result.score_changes) > 0
                     else 0,
@@ -278,6 +318,15 @@ RAW_ROUNDS_SCHEMA = [
     bigquery.SchemaField("is_double_ron", "BOOLEAN"),
     bigquery.SchemaField("agari_winner2", "INTEGER"),
     bigquery.SchemaField("agari_ten2", "INTEGER"),
+    bigquery.SchemaField("agari_from_who2", "INTEGER"),
+    bigquery.SchemaField("agari_fu2", "INTEGER"),
+    bigquery.SchemaField("agari_han2", "INTEGER"),
+    bigquery.SchemaField("agari_yaku2", "STRING"),
+    bigquery.SchemaField("agari_winning_tile2", "STRING"),
+    bigquery.SchemaField("agari_dora_count2", "INTEGER"),
+    bigquery.SchemaField("agari_ura_dora_count2", "INTEGER"),
+    bigquery.SchemaField("agari_aka_dora_count2", "INTEGER"),
+    bigquery.SchemaField("agari_rank2", "INTEGER"),
     bigquery.SchemaField("score_change0", "INTEGER"),
     bigquery.SchemaField("score_change1", "INTEGER"),
     bigquery.SchemaField("score_change2", "INTEGER"),

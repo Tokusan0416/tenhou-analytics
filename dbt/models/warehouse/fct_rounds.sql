@@ -28,6 +28,15 @@ SELECT
     ,is_double_ron
     ,agari_winner2
     ,agari_ten2
+    ,agari_from_who2
+    ,agari_fu2
+    ,agari_han2
+    ,agari_yaku2
+    ,agari_winning_tile2
+    ,agari_dora_count2
+    ,agari_ura_dora_count2
+    ,agari_aka_dora_count2
+    ,agari_rank2
     ,score_change0
     ,score_change1
     ,score_change2

@@ -124,15 +124,33 @@ WITH
                 WHEN r.agari_winner = rp.player_seat THEN r.agari_ten
                 WHEN r.agari_winner2 = rp.player_seat THEN r.agari_ten2
             END AS agari_ten
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_han END AS agari_han
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_fu END AS agari_fu
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_yaku END AS agari_yaku
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_han
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_han2
+            END AS agari_han
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_fu
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_fu2
+            END AS agari_fu
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_yaku
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_yaku2
+            END AS agari_yaku
             ,CASE WHEN r.agari_winner = rp.player_seat THEN agt.agari_turn END AS agari_turn
 
             -- ドラ
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_dora_count END AS dora_count
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_ura_dora_count END AS ura_dora_count
-            ,CASE WHEN r.agari_winner = rp.player_seat THEN r.agari_aka_dora_count END AS aka_dora_count
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_dora_count
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_dora_count2
+            END AS dora_count
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_ura_dora_count
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_ura_dora_count2
+            END AS ura_dora_count
+            ,CASE
+                WHEN r.agari_winner = rp.player_seat THEN r.agari_aka_dora_count
+                WHEN r.agari_winner2 = rp.player_seat THEN r.agari_aka_dora_count2
+            END AS aka_dora_count
 
             -- 放銃（ダブロンの場合は合計点数）
             ,COALESCE(
