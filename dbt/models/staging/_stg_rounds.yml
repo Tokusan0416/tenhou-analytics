@@ -86,3 +86,27 @@ models:
     description: 流局時テンパイだったプレイヤーの席番号（カンマ区切り）
   - name: agari_rank
     description: 和了ランク（0=なし, 1=満貫, 2=跳満, 3=倍満, 4=三倍満, 5=役満）
+  - name: is_double_ron
+    description: ダブロンフラグ
+  - name: agari_winner2
+    description: ダブロン時の2人目の和了者の席番号
+  - name: agari_ten2
+    description: ダブロン時の2人目のアガリ点数
+  - name: agari_from_who2
+    description: ダブロン時の2人目の放銃者（1人目と同じ）
+  - name: agari_fu2
+    description: ダブロン時の2人目の符
+  - name: agari_han2
+    description: ダブロン時の2人目の翻数
+  - name: agari_yaku2
+    description: ダブロン時の2人目の役一覧（役名:翻数のカンマ区切り）
+  - name: agari_winning_tile2
+    description: ダブロン時の2人目の和了牌
+  - name: agari_dora_count2
+    description: ダブロン時の2人目のドラ翻数
+  - name: agari_ura_dora_count2
+    description: ダブロン時の2人目の裏ドラ翻数
+  - name: agari_aka_dora_count2
+    description: ダブロン時の2人目の赤ドラ翻数
+  - name: agari_rank2
+    description: ダブロン時の2人目の和了ランク
