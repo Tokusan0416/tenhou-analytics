@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import gzip
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
@@ -103,8 +103,9 @@ class Round:
     dealer: int  # 親の席番号
     hands: dict[int, list[str]]  # 各プレイヤーの配牌
     actions: list[Action]
-    result: AgariResult | RyuukyokuResult | None
-    reach_players: list[int]  # リーチしたプレイヤー
+    result: AgariResult | RyuukyokuResult | None  # 最後のアガリ/流局結果
+    agari_results: list[AgariResult] = field(default_factory=list)  # ダブロン対応
+    reach_players: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -396,7 +397,9 @@ def parse_mjlog(filepath: str | Path) -> Game:
 
         # 和了
         if tag == "AGARI":
-            current_round.result = _parse_agari(elem)
+            agari = _parse_agari(elem)
+            current_round.result = agari
+            current_round.agari_results.append(agari)
 
         # 流局
         if tag == "RYUUKYOKU":

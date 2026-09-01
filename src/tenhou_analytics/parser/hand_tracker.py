@@ -1,12 +1,13 @@
 """手牌追跡エンジン。
 
 各局の配牌からアクションを順に適用し、各プレイヤーの手牌状態・
-シャンテン数を算出する。
+シャンテン数・待ち牌・待ち枚数を算出する。
+待ち枚数は「見た目枚数」と「山残り枚数」の2種類を提供。
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mahjong.shanten import Shanten
 
@@ -22,16 +23,15 @@ class HandState:
     round_index: int
     action_index: int
     player: int
-    action_type: str  # このアクション後の状態
-    hand_tiles: list[str]  # 手牌の牌名リスト
-    shanten: int  # シャンテン数（-1=和了, 0=テンパイ, 1=イーシャンテン...）
+    action_type: str
+    hand_tiles: list[str]
+    shanten: int
     is_tenpai: bool
-    wait_tiles: list[str]  # 待ち牌名リスト（テンパイ時のみ）
-    wait_count: int  # 待ち枚数
+    wait_tiles: list[str] = field(default_factory=list)
+    wait_count: int = 0  # 山残り枚数（全員の手牌・河・副露・ドラ表示を考慮）
 
 
 def _34_array_to_names(arr: list[int]) -> list[str]:
-    """34種配列を牌名リストに変換。"""
     names = []
     for i, count in enumerate(arr):
         for _ in range(count):
@@ -40,7 +40,6 @@ def _34_array_to_names(arr: list[int]) -> list[str]:
 
 
 def _name_to_kind(tile_name: str) -> int | None:
-    """牌名を34種インデックスに変換。"""
     if tile_name in ("0m", "0p", "0s"):
         return {"0m": 4, "0p": 13, "0s": 22}[tile_name]
     try:
@@ -50,24 +49,58 @@ def _name_to_kind(tile_name: str) -> int | None:
 
 
 def _calc_waits(
-    arr: list[int], shanten: int, tile_count: int, shanten_calc: Shanten
+    hand: list[int],
+    all_known: list[int],
+    shanten_val: int,
+    tile_count: int,
+    shanten_calc: Shanten,
 ) -> tuple[list[str], int]:
-    """テンパイ時の待ち牌と枚数を算出。"""
-    if shanten != 0 or tile_count not in {1, 4, 7, 10, 13}:
+    """テンパイ時の待ち牌と山残り枚数を算出。
+
+    Args:
+        hand: 自分の手牌(34種)
+        all_known: 全ての見えている牌(全員の手牌+河+副露+ドラ表示)(34種)
+        shanten_val: シャンテン数
+        tile_count: 手牌枚数
+        shanten_calc: Shantenインスタンス
+    """
+    if shanten_val != 0 or tile_count not in {1, 4, 7, 10, 13}:
         return [], 0
     waits: list[str] = []
     wait_count = 0
     for i in range(34):
-        if arr[i] < 4:
-            arr[i] += 1
+        if hand[i] < 4:
+            hand[i] += 1
             try:
-                if shanten_calc.calculate_shanten(arr) == -1:
+                if shanten_calc.calculate_shanten(hand) == -1:
                     waits.append(TILE_TYPES[i])
-                    wait_count += 4 - arr[i]
+                    # 山残り枚数 = 4 - 全ての見えている牌
+                    remaining = 4 - all_known[i]
+                    wait_count += max(0, remaining)
             except ValueError:
                 pass
-            arr[i] -= 1
+            hand[i] -= 1
     return waits, wait_count
+
+
+def _build_all_known(
+    hands_34: dict[int, list[int]],
+    discards: list[int],
+    dora_indicators: list[int],
+) -> list[int]:
+    """全ての見えている牌の34種配列を構築。"""
+    known = [0] * 34
+    # 全プレイヤーの手牌
+    for arr in hands_34.values():
+        for i in range(34):
+            known[i] += arr[i]
+    # 河（打牌された牌）
+    for i in range(34):
+        known[i] += discards[i]
+    # ドラ表示牌
+    for i in range(34):
+        known[i] += dora_indicators[i]
+    return known
 
 
 def track_hands_for_round(
@@ -89,6 +122,15 @@ def track_hands_for_round(
                 arr[kind] += 1
         hands_34[player] = arr
 
+    # 河（打牌された牌、鳴かれた牌も含む）
+    discards: list[int] = [0] * 34
+
+    # ドラ表示牌
+    dora_indicators: list[int] = [0] * 34
+    dora_kind = _name_to_kind(round_data.dora_indicator)
+    if dora_kind is not None:
+        dora_indicators[dora_kind] += 1
+
     # 配牌時点のシャンテン数を記録
     for player, arr in hands_34.items():
         tile_count = sum(arr)
@@ -99,7 +141,8 @@ def track_hands_for_round(
         except ValueError:
             sh = -2
 
-        waits, wcount = _calc_waits(arr, sh, tile_count, shanten_calc)
+        all_known = _build_all_known(hands_34, discards, dora_indicators)
+        waits, wcount = _calc_waits(arr, all_known, sh, tile_count, shanten_calc)
         results.append(
             HandState(
                 game_id=game_id,
@@ -130,6 +173,7 @@ def track_hands_for_round(
                 kind = _name_to_kind(tile_name)
                 if kind is not None and hands_34[action.player][kind] > 0:
                     hands_34[action.player][kind] -= 1
+                    discards[kind] += 1
 
             # 打牌後のシャンテン数を記録
             arr = hands_34[action.player]
@@ -140,7 +184,10 @@ def track_hands_for_round(
                 except ValueError:
                     sh = -2
 
-                waits, wcount = _calc_waits(arr, sh, tile_count, shanten_calc)
+                all_known = _build_all_known(hands_34, discards, dora_indicators)
+                waits, wcount = _calc_waits(
+                    arr, all_known, sh, tile_count, shanten_calc
+                )
                 results.append(
                     HandState(
                         game_id=game_id,
@@ -158,6 +205,7 @@ def track_hands_for_round(
 
         elif action.type in ("chi", "pon", "daiminkan") and action.player in hands_34:
             # 副露: 自分の手牌から出した牌を除去
+            # 鳴かれた牌は河から除去（河にあったものが副露に移る）
             if action.naki_tiles:
                 skipped_called = False
                 for nt in action.naki_tiles:
@@ -165,6 +213,9 @@ def track_hands_for_round(
                     if kind is not None:
                         if not skipped_called and nt == action.called_tile:
                             skipped_called = True
+                            # 鳴かれた牌を河から除去（副露として扱われる）
+                            if discards[kind] > 0:
+                                discards[kind] -= 1
                             continue
                         if hands_34[action.player][kind] > 0:
                             hands_34[action.player][kind] -= 1
@@ -180,6 +231,13 @@ def track_hands_for_round(
                 kind = _name_to_kind(action.called_tile)
                 if kind is not None and hands_34[action.player][kind] > 0:
                     hands_34[action.player][kind] -= 1
+
+        elif action.type == "dora":
+            # 槓ドラ表示牌
+            if action.tile:
+                kind = _name_to_kind(action.tile)
+                if kind is not None:
+                    dora_indicators[kind] += 1
 
     return results
 

@@ -93,38 +93,49 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
         }
 
         if isinstance(r.result, AgariResult):
+            # ダブロンの場合はscore_changeを全AGARI分合算
+            sc = [0, 0, 0, 0]
+            for ar in r.agari_results:
+                for j in range(min(4, len(ar.score_changes))):
+                    sc[j] += ar.score_changes[j]
+
+            # 1人目のアガリ情報をベースに記録
+            first_agari = r.agari_results[0] if r.agari_results else r.result
+            is_double_ron = len(r.agari_results) > 1
+
             row.update(
                 {
-                    "agari_winner": r.result.winner,
-                    "agari_from_who": r.result.from_who,
-                    "agari_is_tsumo": r.result.is_tsumo,
-                    "agari_ten": r.result.ten,
-                    "agari_fu": r.result.fu,
-                    "agari_han": r.result.han,
-                    "agari_yaku": ",".join(f"{y.name}:{y.han}" for y in r.result.yaku),
-                    "agari_winning_tile": r.result.winning_tile,
-                    "agari_dora": ",".join(r.result.dora),
-                    "agari_ura_dora": ",".join(r.result.ura_dora),
-                    "agari_dora_count": sum(y.han for y in r.result.yaku if y.id == 52),
+                    "agari_winner": first_agari.winner,
+                    "agari_from_who": first_agari.from_who,
+                    "agari_is_tsumo": first_agari.is_tsumo,
+                    "agari_ten": first_agari.ten,
+                    "agari_fu": first_agari.fu,
+                    "agari_han": first_agari.han,
+                    "agari_yaku": ",".join(
+                        f"{y.name}:{y.han}" for y in first_agari.yaku
+                    ),
+                    "agari_winning_tile": first_agari.winning_tile,
+                    "agari_dora": ",".join(first_agari.dora),
+                    "agari_ura_dora": ",".join(first_agari.ura_dora),
+                    "agari_dora_count": sum(
+                        y.han for y in first_agari.yaku if y.id == 52
+                    ),
                     "agari_ura_dora_count": sum(
-                        y.han for y in r.result.yaku if y.id == 53
+                        y.han for y in first_agari.yaku if y.id == 53
                     ),
                     "agari_aka_dora_count": sum(
-                        y.han for y in r.result.yaku if y.id == 54
+                        y.han for y in first_agari.yaku if y.id == 54
                     ),
-                    "agari_rank": r.result.agari_rank,
-                    "score_change0": r.result.score_changes[0]
-                    if len(r.result.score_changes) > 0
-                    else 0,
-                    "score_change1": r.result.score_changes[1]
-                    if len(r.result.score_changes) > 1
-                    else 0,
-                    "score_change2": r.result.score_changes[2]
-                    if len(r.result.score_changes) > 2
-                    else 0,
-                    "score_change3": r.result.score_changes[3]
-                    if len(r.result.score_changes) > 3
-                    else 0,
+                    "agari_rank": first_agari.agari_rank,
+                    "is_double_ron": is_double_ron,
+                    "agari_winner2": r.agari_results[1].winner
+                    if is_double_ron
+                    else None,
+                    "agari_ten2": r.agari_results[1].ten if is_double_ron else None,
+                    "score_change0": sc[0],
+                    "score_change1": sc[1],
+                    "score_change2": sc[2],
+                    "score_change3": sc[3],
                     "ryuukyoku_reason": None,
                     "tenpai_players": None,
                 }
@@ -146,6 +157,9 @@ def _game_to_raw_rounds_rows(game: Game) -> list[dict]:
                     "agari_ura_dora_count": None,
                     "agari_aka_dora_count": None,
                     "agari_rank": None,
+                    "is_double_ron": False,
+                    "agari_winner2": None,
+                    "agari_ten2": None,
                     "score_change0": r.result.score_changes[0]
                     if len(r.result.score_changes) > 0
                     else 0,
@@ -261,6 +275,9 @@ RAW_ROUNDS_SCHEMA = [
     bigquery.SchemaField("agari_ura_dora_count", "INTEGER"),
     bigquery.SchemaField("agari_aka_dora_count", "INTEGER"),
     bigquery.SchemaField("agari_rank", "INTEGER"),
+    bigquery.SchemaField("is_double_ron", "BOOLEAN"),
+    bigquery.SchemaField("agari_winner2", "INTEGER"),
+    bigquery.SchemaField("agari_ten2", "INTEGER"),
     bigquery.SchemaField("score_change0", "INTEGER"),
     bigquery.SchemaField("score_change1", "INTEGER"),
     bigquery.SchemaField("score_change2", "INTEGER"),

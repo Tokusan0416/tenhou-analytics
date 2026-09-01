@@ -37,6 +37,10 @@ SELECT
     ,agari_dora_count
     ,agari_ura_dora_count
     ,agari_aka_dora_count
+    ,agari_rank
+    ,is_double_ron
+    ,agari_winner2
+    ,agari_ten2
     ,score_change0
     ,score_change1
     ,score_change2
