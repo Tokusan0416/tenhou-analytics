@@ -40,6 +40,7 @@ WITH
             ,hs.player
             ,hs.wait_tiles
             ,hs.wait_count
+            ,hs.wait_count_visible
         FROM
             {{ ref('stg_hand_states') }} AS hs
             INNER JOIN first_tenpai AS ft
@@ -81,6 +82,7 @@ SELECT
     ,dc.discard_turn AS tenpai_turn
     ,ftd.wait_tiles AS tenpai_wait_tiles
     ,ftd.wait_count AS tenpai_wait_count
+    ,ftd.wait_count_visible AS tenpai_wait_count_visible
 
     -- 局の結果（fct_round_player_statsから）
     ,rps.is_agari

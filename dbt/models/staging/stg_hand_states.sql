@@ -17,5 +17,6 @@ SELECT
     ,is_tenpai
     ,wait_tiles
     ,wait_count
+    ,wait_count_visible
 FROM
     source

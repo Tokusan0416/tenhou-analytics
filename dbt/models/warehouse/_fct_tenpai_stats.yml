@@ -28,7 +28,9 @@ models:
   - name: tenpai_wait_tiles
     description: テンパイ時の待ち牌（カンマ区切り）
   - name: tenpai_wait_count
-    description: テンパイ時の待ち枚数
+    description: テンパイ時の待ち枚数（山残り枚数）
+  - name: tenpai_wait_count_visible
+    description: テンパイ時の待ち枚数（見た目枚数）
   - name: is_agari
     description: アガリフラグ
   - name: agari_type
