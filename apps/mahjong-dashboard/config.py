@@ -6,22 +6,22 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "invertible-vine-477701-j8")
 
 # パステル系の統一カラーパレット
 COLORS = {
-    "primary": "#6C9BD2",     # 柔らかい青
-    "secondary": "#F0A868",   # 柔らかいオレンジ
-    "positive": "#7BC8A4",    # 柔らかい緑
-    "negative": "#E8887D",    # 柔らかい赤
-    "neutral": "#A0A0A0",     # グレー
-    "purple": "#B8A9D4",      # 柔らかい紫
-    "brown": "#C4A882",       # 柔らかい茶
-    "pink": "#E8B4C8",        # 柔らかいピンク
+    "primary": "#6C9BD2",  # 柔らかい青
+    "secondary": "#F0A868",  # 柔らかいオレンジ
+    "positive": "#7BC8A4",  # 柔らかい緑
+    "negative": "#E8887D",  # 柔らかい赤
+    "neutral": "#A0A0A0",  # グレー
+    "purple": "#B8A9D4",  # 柔らかい紫
+    "brown": "#C4A882",  # 柔らかい茶
+    "pink": "#E8B4C8",  # 柔らかいピンク
 }
 
 # 順位カラー（1位〜4位）
 RANK_COLORS = [
-    COLORS["positive"],   # 1位: 緑
-    COLORS["primary"],    # 2位: 青
+    COLORS["positive"],  # 1位: 緑
+    COLORS["primary"],  # 2位: 青
     COLORS["secondary"],  # 3位: オレンジ
-    COLORS["negative"],   # 4位: 赤
+    COLORS["negative"],  # 4位: 赤
 ]
 
 # アガリ打点分布カラー（低→高）

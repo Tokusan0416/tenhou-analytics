@@ -1,0 +1,35 @@
+version: 2
+models:
+- name: int_hand_states_turn
+  description: 打牌ごとの手牌状態に巡目（turn）を付与したビュー
+  columns:
+  - name: game_id
+    description: 対局ID
+    tests:
+    - not_null
+  - name: round_index
+    description: 局インデックス
+    tests:
+    - not_null
+  - name: action_index
+    description: アクションインデックス
+    tests:
+    - not_null
+  - name: player
+    description: プレイヤーの席番号（0-3）
+    tests:
+    - not_null
+  - name: action_type
+    description: アクション種別（discard）
+  - name: shanten
+    description: シャンテン数
+  - name: is_tenpai
+    description: テンパイフラグ
+  - name: wait_tiles
+    description: 待ち牌（カンマ区切り）
+  - name: wait_count
+    description: 待ち枚数（山残り枚数）
+  - name: wait_count_visible
+    description: 待ち枚数（見た目枚数）
+  - name: turn
+    description: 打牌巡目（プレイヤーごとの打牌回数）

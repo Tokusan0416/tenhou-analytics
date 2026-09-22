@@ -172,7 +172,7 @@ cd dbt && ./scripts/generate_schema.sh --all && cd ..
 | レイヤー | データセット | 内容 |
 |---|---|---|
 | staging | `tenhou_staging` | rawテーブルの1:1変換 |
-| intermediate | `tenhou_staging` | 副露/リーチ順序/アガリ巡目の導出 |
+| intermediate | `tenhou_staging` | 副露/リーチ順序/アガリ巡目/巡目別手牌状態の導出 |
 | warehouse | `tenhou_warehouse` | DIM/FACTテーブル |
 | marts | `tenhou_marts` | レポート・可視化用の集計テーブル |
 
@@ -182,7 +182,8 @@ cd dbt && ./scripts/generate_schema.sh --all && cd ..
 - `dim_game_types`: ゲーム種別ディメンション
 - `fct_games`: 対局 × プレイヤーのファクト（順位・ポイント）
 - `fct_rounds`: 局ファクト
-- `fct_round_player_stats`: プレイヤー × 局のファクト（全スタッツの算出基盤）
+- `fct_round_player_stats`: プレイヤー × 局のファクト（全スタッツの算出基盤、ダブロン対応）
+- `fct_tenpai_stats`: テンパイ情報ファクト（配牌シャンテン・テンパイ巡目・待ち枚数・局結果）
 
 ### martsのテーブル
 
@@ -231,10 +232,12 @@ mainへの直接pushは禁止。`feature/xxx` ブランチでPRを作成し、CI
 - [x] BigQueryローダー / GCS連携
 - [x] dbtプロジェクト（staging/intermediate/warehouse/marts）
 - [x] Streamlitダッシュボード（apps/mahjong-dashboard/）
-- [x] dbt schema.yml / テスト整備（persist_docs有効、53テスト、codegen導入）
+- [x] dbt schema.yml / テスト整備（persist_docs有効、57テスト、codegen導入）
 - [x] Docker化 / Cloud Runデプロイ
 - [x] CI/CD（GitHub Actions + Workload Identity Federation）
 - [x] 手牌追跡・シャンテン分析・待ち形分析（mahjongライブラリ）
+- [x] ダブロン対応（2人目の詳細情報を全レイヤーに保持）
+- [x] Streamlitリファクタ（DWH側にビジネスロジック集約、アプリは薄い集計層）
 
 ### 今後のステップ
 
