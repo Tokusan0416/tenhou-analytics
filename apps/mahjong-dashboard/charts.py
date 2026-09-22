@@ -1186,7 +1186,10 @@ def render_scatter_with_trend(
     # 順位の色分け（整数値の場合のみ、期間集計の平均値は対象外）
     if "final_rank" in df.columns:
         ranks = df.loc[plot_df.index, "final_rank"]
-        if ranks.dropna().apply(float.is_integer).all():
+        if pd.api.types.is_integer_dtype(ranks) or (
+            pd.api.types.is_float_dtype(ranks)
+            and ranks.dropna().apply(lambda v: v == int(v)).all()
+        ):
             colors_map = ranks.map(
                 {
                     1: RANK_COLORS[0],
