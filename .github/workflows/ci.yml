@@ -63,6 +63,11 @@ jobs:
         env:
           GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
 
+      - name: dbt run
+        run: cd dbt && uv run --group dbt dbt run --profiles-dir .
+        env:
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+
       - name: dbt test
         run: cd dbt && uv run --group dbt dbt test --profiles-dir .
         env:
