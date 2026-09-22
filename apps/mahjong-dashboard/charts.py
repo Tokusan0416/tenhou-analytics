@@ -1171,9 +1171,8 @@ def render_scatter_with_trend(
     df: pd.DataFrame,
     x_col: str,
     y_col: str,
-    rolling_df: pd.DataFrame | None = None,
 ) -> go.Figure | None:
-    """2指標の散布図（+ローリング平均のオーバーレイ）。"""
+    """2指標の散布図（回帰直線付き）。"""
     if df.empty or x_col not in df.columns or y_col not in df.columns:
         return None
 
@@ -1184,16 +1183,20 @@ def render_scatter_with_trend(
     x_label = CORRELATION_METRICS.get(x_col, x_col)
     y_label = CORRELATION_METRICS.get(y_col, y_col)
 
-    # 順位の色分け
+    # 順位の色分け（整数値の場合のみ、期間集計の平均値は対象外）
     if "final_rank" in df.columns:
-        colors_map = df.loc[plot_df.index, "final_rank"].map(
-            {
-                1: RANK_COLORS[0],
-                2: RANK_COLORS[1],
-                3: RANK_COLORS[2],
-                4: RANK_COLORS[3],
-            }
-        )
+        ranks = df.loc[plot_df.index, "final_rank"]
+        if ranks.dropna().apply(float.is_integer).all():
+            colors_map = ranks.map(
+                {
+                    1: RANK_COLORS[0],
+                    2: RANK_COLORS[1],
+                    3: RANK_COLORS[2],
+                    4: RANK_COLORS[3],
+                }
+            )
+        else:
+            colors_map = COLORS["primary"]
     else:
         colors_map = COLORS["primary"]
 
@@ -1204,7 +1207,7 @@ def render_scatter_with_trend(
             y=plot_df[y_col],
             mode="markers",
             marker={"size": 9, "color": colors_map, "opacity": 0.7},
-            name="対局",
+            name="データ点",
             hovertemplate=f"{x_label}: %{{x:.1f}}<br>{y_label}: %{{y:.1f}}<extra></extra>",
         )
     )
@@ -1226,26 +1229,6 @@ def render_scatter_with_trend(
                 hoverinfo="skip",
             )
         )
-
-    # ローリング平均
-    if (
-        rolling_df is not None
-        and x_col in rolling_df.columns
-        and y_col in rolling_df.columns
-    ):
-        r_plot = rolling_df[[x_col, y_col]].dropna()
-        if not r_plot.empty:
-            fig.add_trace(
-                go.Scatter(
-                    x=r_plot[x_col],
-                    y=r_plot[y_col],
-                    mode="lines+markers",
-                    line={"color": COLORS["primary"], "width": 2},
-                    marker={"size": 5},
-                    name="ローリング平均",
-                    hovertemplate=f"{x_label}: %{{x:.1f}}<br>{y_label}: %{{y:.1f}}<extra></extra>",
-                )
-            )
 
     # 相関係数を注記
     corr_val = plot_df[x_col].corr(plot_df[y_col])
