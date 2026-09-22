@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
-from google.cloud import bigquery
-
 from config import PROJECT_ID
+from google.cloud import bigquery
 
 
 @st.cache_resource
@@ -21,7 +20,15 @@ def query_df(sql: str):
 
 def load_round_player_stats():
     return query_df("""
-        SELECT *
+        SELECT
+            game_id, round_index, round_number, player_seat, lobby
+            ,is_dealer, result_type, rank_at_start
+            ,is_agari, is_tsumo, agari_ten, agari_han, agari_yaku, agari_type, agari_turn
+            ,is_houjuu, houjuu_ten, houjuu_turn, houjuu_to_type
+            ,is_hi_tsumo, hi_tsumo_ten, is_yoko_ido
+            ,is_reach, is_first_reach, is_naki, naki_count
+            ,dora_count, score_change
+            ,opponents_reach_count, opponents_naki_count
         FROM `tenhou_warehouse.fct_round_player_stats`
         WHERE is_me
         ORDER BY game_id, round_index
@@ -37,37 +44,47 @@ def load_all_round_player_stats():
 
 
 def load_game_results():
-    return query_df("SELECT * FROM `tenhou_marts.mart_game_results` ORDER BY game_order")
+    return query_df("""
+        SELECT
+            game_id, game_date_jst, game_order, seat, lobby
+            ,dan, rate, final_rank, final_score, final_point
+            ,agari_count, houjuu_count, reach_count, naki_count, num_rounds
+            ,opponent1_name, opponent2_name, opponent3_name
+            ,cumulative_point
+        FROM `tenhou_marts.mart_game_results`
+        ORDER BY game_order
+    """)
 
 
 def load_tenpai_stats():
     """テンパイ情報（配牌シャンテン・待ち形等）。"""
     return query_df("""
-        SELECT *
+        SELECT
+            haipai_shanten, reached_tenpai, tenpai_turn
+            ,tenpai_wait_count, tenpai_wait_count_visible
+            ,is_agari, agari_ten, is_houjuu, houjuu_ten
+            ,is_reach, is_naki, score_change
         FROM `tenhou_warehouse.fct_tenpai_stats`
         WHERE is_me
     """)
 
 
 def load_hand_states_by_turn():
-    """巡目別のシャンテン数データ（全プレイヤー分、自分のみ）。"""
+    """巡目別のシャンテン数データ（自分のみ）。dbt int_hand_states_turnを参照。"""
     return query_df("""
         SELECT
-            hs.game_id
-            ,hs.round_index
-            ,hs.action_index
-            ,hs.shanten
-            ,hs.is_tenpai
-            ,hs.action_type
-            ,ROW_NUMBER() OVER (
-                PARTITION BY hs.game_id, hs.round_index, hs.player
-                ORDER BY hs.action_index
-            ) AS turn
-        FROM `tenhou_staging.stg_hand_states` AS hs
+            ht.game_id
+            ,ht.round_index
+            ,ht.action_index
+            ,ht.shanten
+            ,ht.is_tenpai
+            ,ht.action_type
+            ,ht.turn
+        FROM `tenhou_staging.int_hand_states_turn` AS ht
         INNER JOIN `tenhou_warehouse.fct_games` AS g
-            ON hs.game_id = g.game_id AND hs.player = g.seat
+            ON ht.game_id = g.game_id AND ht.player = g.seat
         WHERE g.is_me
-        ORDER BY hs.game_id, hs.round_index, hs.action_index
+        ORDER BY ht.game_id, ht.round_index, ht.action_index
     """)
 
 
@@ -81,10 +98,10 @@ def load_yaku_detail():
     """)
 
 
-
 # ==============================
 # スタッツ計算
 # ==============================
+
 
 def calc_stats(df: pd.DataFrame) -> dict | None:
     if df.empty:
@@ -103,19 +120,33 @@ def calc_stats(df: pd.DataFrame) -> dict | None:
         "avg_score_change": df["score_change"].mean(),
         "agari_rate": agari_n / n * 100,
         "avg_agari_ten": df.loc[df["is_agari"], "agari_ten"].mean() if agari_n else 0,
-        "avg_naki_agari_ten": df.loc[df["is_naki"] & df["is_agari"], "agari_ten"].mean() if (df["is_naki"] & df["is_agari"]).any() else 0,
+        "avg_naki_agari_ten": df.loc[df["is_naki"] & df["is_agari"], "agari_ten"].mean()
+        if (df["is_naki"] & df["is_agari"]).any()
+        else 0,
         "avg_agari_turn": df.loc[df["is_agari"], "agari_turn"].mean() if agari_n else 0,
         "houjuu_rate": houjuu_n / n * 100,
-        "avg_houjuu_ten": df.loc[df["is_houjuu"], "houjuu_ten"].mean() if houjuu_n else 0,
+        "avg_houjuu_ten": df.loc[df["is_houjuu"], "houjuu_ten"].mean()
+        if houjuu_n
+        else 0,
         "reach_rate": reach_n / n * 100,
         "first_reach_rate": df["is_first_reach"].sum() / n * 100,
         "reach_agari_count": int((df["is_reach"] & df["is_agari"]).sum()),
-        "reach_agari_rate": (df["is_reach"] & df["is_agari"]).sum() / reach_n * 100 if reach_n else 0,
+        "reach_agari_rate": (df["is_reach"] & df["is_agari"]).sum() / reach_n * 100
+        if reach_n
+        else 0,
         "naki_rate": naki_n / n * 100,
-        "avg_dora_count": df.loc[df["is_agari"], "dora_count"].fillna(0).mean() if agari_n else 0,
-        "avg_ryuukyoku_score_change": df.loc[df["result_type"] == "ryuukyoku", "score_change"].mean() if (df["result_type"] == "ryuukyoku").any() else 0,
+        "avg_dora_count": df.loc[df["is_agari"], "dora_count"].fillna(0).mean()
+        if agari_n
+        else 0,
+        "avg_ryuukyoku_score_change": df.loc[
+            df["result_type"] == "ryuukyoku", "score_change"
+        ].mean()
+        if (df["result_type"] == "ryuukyoku").any()
+        else 0,
         "hi_tsumo_rate": df["is_hi_tsumo"].sum() / n * 100,
-        "avg_hi_tsumo_ten": df.loc[df["is_hi_tsumo"], "hi_tsumo_ten"].mean() if df["is_hi_tsumo"].any() else 0,
+        "avg_hi_tsumo_ten": df.loc[df["is_hi_tsumo"], "hi_tsumo_ten"].mean()
+        if df["is_hi_tsumo"].any()
+        else 0,
     }
 
 
@@ -168,12 +199,57 @@ def stats_to_row(label: str, s: dict, gs: dict | None = None) -> dict:
     return row
 
 
-def process_yaku_data(yaku_detail: pd.DataFrame, filtered_rounds: pd.DataFrame) -> pd.DataFrame:
+def calc_tenpai_group_stats(
+    df: pd.DataFrame,
+    group_col: str,
+    label_col: str | None = None,
+    label_suffix: str = "",
+    count_label: str = "テンパイ回数",
+    extra_fn: callable | None = None,
+) -> list[dict]:
+    """DataFrameをgroup_colでグループ化し、共通指標を計算。
+
+    is_agari, is_houjuu, agari_ten, score_change を使って集計する。
+    extra_fn(subset, n) を渡すと追加カラムのdictを返せる。
+    """
+    rows = []
+    for val in sorted(df[group_col].unique()):
+        subset = df[df[group_col] == val]
+        if subset.empty:
+            continue
+        n = len(subset)
+        agari_s = subset[subset["is_agari"]]
+        houjuu_s = subset[subset["is_houjuu"]]
+        row: dict = {}
+        col_label = label_col or group_col
+        row[col_label] = f"{int(val)}{label_suffix}" if label_suffix else str(val)
+        row[count_label] = n
+        # 追加カラム（ラベルと回数の直後に挿入）
+        if extra_fn:
+            row.update(extra_fn(subset, n))
+        row["アガリ率"] = f"{len(agari_s) / n * 100:.2f}%"
+        row["アガリ回数"] = len(agari_s)
+        row["アガリ打点"] = (
+            f"{int(agari_s['agari_ten'].mean()):,}" if not agari_s.empty else "-"
+        )
+        row["放銃率"] = f"{len(houjuu_s) / n * 100:.2f}%"
+        row["放銃回数"] = len(houjuu_s)
+        row["局収支"] = f"{subset['score_change'].mean():+.1f}"
+        rows.append(row)
+    return rows
+
+
+def process_yaku_data(
+    yaku_detail: pd.DataFrame, filtered_rounds: pd.DataFrame
+) -> pd.DataFrame:
     """役名×翻数で集計。"""
     if filtered_rounds.empty or yaku_detail.empty:
         return pd.DataFrame()
-    keys = set(zip(filtered_rounds["game_id"], filtered_rounds["round_index"]))
-    filtered = yaku_detail[yaku_detail.apply(lambda r: (r["game_id"], r["round_index"]) in keys, axis=1)]
+    filtered = yaku_detail.merge(
+        filtered_rounds[["game_id", "round_index"]].drop_duplicates(),
+        on=["game_id", "round_index"],
+        how="inner",
+    )
     if filtered.empty:
         return pd.DataFrame()
 
@@ -188,21 +264,33 @@ def process_yaku_data(yaku_detail: pd.DataFrame, filtered_rounds: pd.DataFrame) 
                 continue
             for prefix in ("場風 ", "自風 ", "役牌 "):
                 if name_raw.startswith(prefix):
-                    name_raw = name_raw[len(prefix):]
+                    name_raw = name_raw[len(prefix) :]
                     break
-            rows.append({"yaku_name": name_raw, "han": int(han_str), "agari_ten": r.get("agari_ten", 0)})
+            rows.append(
+                {
+                    "yaku_name": name_raw,
+                    "han": int(han_str),
+                    "agari_ten": r.get("agari_ten", 0),
+                }
+            )
 
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
-    return df.groupby(["yaku_name", "han"]).agg(
-        count=("agari_ten", "size"),
-        avg_ten=("agari_ten", "mean"),
-    ).reset_index().sort_values("count", ascending=False)
+    return (
+        df.groupby(["yaku_name", "han"])
+        .agg(
+            count=("agari_ten", "size"),
+            avg_ten=("agari_ten", "mean"),
+        )
+        .reset_index()
+        .sort_values("count", ascending=False)
+    )
 
 
-def grouped_stats_table(df: pd.DataFrame, group_col: str,
-                        games: pd.DataFrame | None = None, label_fn=None) -> pd.DataFrame:
+def grouped_stats_table(
+    df: pd.DataFrame, group_col: str, games: pd.DataFrame | None = None, label_fn=None
+) -> pd.DataFrame:
     rows = []
     for val in sorted(df[group_col].unique()):
         subset = df[df[group_col] == val]
@@ -221,7 +309,9 @@ def grouped_stats_table(df: pd.DataFrame, group_col: str,
     return pd.DataFrame(rows)
 
 
-def build_trend_table(rounds: pd.DataFrame, games: pd.DataFrame, period: str) -> pd.DataFrame | None:
+def build_trend_table(
+    rounds: pd.DataFrame, games: pd.DataFrame, period: str
+) -> pd.DataFrame | None:
     """期間別のスタッツ一覧テーブル。"""
     rounds = rounds.copy()
     rounds["date"] = pd.to_datetime(rounds["game_id"].str[:8], format="%Y%m%d")
@@ -238,6 +328,10 @@ def build_trend_table(rounds: pd.DataFrame, games: pd.DataFrame, period: str) ->
         s = calc_stats(rounds[rounds["period"] == p])
         if not s:
             continue
-        gs = calc_game_stats(games[games["period"] == p]) if "period" in games.columns else None
+        gs = (
+            calc_game_stats(games[games["period"] == p])
+            if "period" in games.columns
+            else None
+        )
         rows.append(stats_to_row(p, s, gs))
     return pd.DataFrame(rows) if rows else None
