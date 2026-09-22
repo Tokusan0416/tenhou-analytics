@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -1092,6 +1093,176 @@ def grouped_bar_chart(df, group_col, metrics, label_fn=None, colors=None):
     fig.update_layout(
         barmode="group",
         yaxis_title="%",
+        height=400,
+        margin={"t": 30, "b": 50},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1,
+        },
+    )
+    return fig
+
+
+# ==============================
+# 相関分析
+# ==============================
+
+CORRELATION_METRICS = {
+    "final_rank": "平均順位",
+    "final_point": "ポイント",
+    "agari_rate": "アガリ率",
+    "avg_agari_ten": "アガリ打点",
+    "houjuu_rate": "放銃率",
+    "avg_houjuu_ten": "放銃打点",
+    "reach_rate": "リーチ率",
+    "naki_rate": "副露率",
+    "hi_tsumo_rate": "被ツモ率",
+    "avg_score_change": "局収支",
+}
+
+
+def render_correlation_heatmap(df: pd.DataFrame) -> go.Figure | None:
+    """指標間の相関係数ヒートマップ。"""
+    cols = [c for c in CORRELATION_METRICS if c in df.columns]
+    if len(cols) < 2:
+        return None
+
+    numeric = df[cols].dropna()
+    if len(numeric) < 5:
+        return None
+
+    corr = numeric.corr()
+    labels = [CORRELATION_METRICS[c] for c in cols]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=corr.values,
+            x=labels,
+            y=labels,
+            colorscale=[
+                [0, COLORS["negative"]],
+                [0.5, "#ffffff"],
+                [1, COLORS["positive"]],
+            ],
+            zmid=0,
+            zmin=-1,
+            zmax=1,
+            text=[
+                [f"{v:.2f}" if i != j else "" for j, v in enumerate(row)]
+                for i, row in enumerate(corr.values)
+            ],
+            texttemplate="%{text}",
+            textfont={"size": 11},
+            hovertemplate="%{y} × %{x}<br>相関係数: %{z:.3f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        height=max(400, len(cols) * 45 + 100),
+        margin={"t": 30, "b": 50, "l": 100},
+        xaxis={"side": "bottom"},
+    )
+    return fig
+
+
+def render_scatter_with_trend(
+    df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    rolling_df: pd.DataFrame | None = None,
+) -> go.Figure | None:
+    """2指標の散布図（+ローリング平均のオーバーレイ）。"""
+    if df.empty or x_col not in df.columns or y_col not in df.columns:
+        return None
+
+    plot_df = df[[x_col, y_col]].dropna()
+    if len(plot_df) < 3:
+        return None
+
+    x_label = CORRELATION_METRICS.get(x_col, x_col)
+    y_label = CORRELATION_METRICS.get(y_col, y_col)
+
+    # 順位の色分け
+    if "final_rank" in df.columns:
+        colors_map = df.loc[plot_df.index, "final_rank"].map(
+            {
+                1: RANK_COLORS[0],
+                2: RANK_COLORS[1],
+                3: RANK_COLORS[2],
+                4: RANK_COLORS[3],
+            }
+        )
+    else:
+        colors_map = COLORS["primary"]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=plot_df[x_col],
+            y=plot_df[y_col],
+            mode="markers",
+            marker={"size": 9, "color": colors_map, "opacity": 0.7},
+            name="対局",
+            hovertemplate=f"{x_label}: %{{x:.1f}}<br>{y_label}: %{{y:.1f}}<extra></extra>",
+        )
+    )
+
+    # 回帰直線
+    x_vals = plot_df[x_col].values
+    y_vals = plot_df[y_col].values
+    if len(x_vals) >= 5 and np.std(x_vals) > 0:
+        z = np.polyfit(x_vals, y_vals, 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(x_vals.min(), x_vals.max(), 50)
+        fig.add_trace(
+            go.Scatter(
+                x=x_line,
+                y=p(x_line),
+                mode="lines",
+                line={"color": COLORS["neutral"], "dash": "dash", "width": 1.5},
+                name="回帰直線",
+                hoverinfo="skip",
+            )
+        )
+
+    # ローリング平均
+    if (
+        rolling_df is not None
+        and x_col in rolling_df.columns
+        and y_col in rolling_df.columns
+    ):
+        r_plot = rolling_df[[x_col, y_col]].dropna()
+        if not r_plot.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=r_plot[x_col],
+                    y=r_plot[y_col],
+                    mode="lines+markers",
+                    line={"color": COLORS["primary"], "width": 2},
+                    marker={"size": 5},
+                    name="ローリング平均",
+                    hovertemplate=f"{x_label}: %{{x:.1f}}<br>{y_label}: %{{y:.1f}}<extra></extra>",
+                )
+            )
+
+    # 相関係数を注記
+    corr_val = plot_df[x_col].corr(plot_df[y_col])
+    fig.add_annotation(
+        text=f"r = {corr_val:.3f}",
+        xref="paper",
+        yref="paper",
+        x=0.02,
+        y=0.98,
+        showarrow=False,
+        font={"size": 13, "color": COLORS["primary"]},
+        bgcolor="rgba(255,255,255,0.8)",
+    )
+
+    fig.update_layout(
+        xaxis_title=x_label,
+        yaxis_title=y_label,
         height=400,
         margin={"t": 30, "b": 50},
         legend={
