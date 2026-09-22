@@ -99,16 +99,38 @@ def load_yaku_detail():
 
 
 # ==============================
-# 対局ごとスタッツ（相関分析用）
+# 相関分析用スタッツ集計
 # ==============================
 
 
-def build_per_game_stats(rounds: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
-    """fct_round_player_statsを対局単位に集約し、相関分析用のDataFrameを返す。"""
+def build_correlation_stats(
+    rounds: pd.DataFrame,
+    games: pd.DataFrame,
+    unit: str = "対局別",
+) -> pd.DataFrame:
+    """相関分析用にスタッツを集約する。
+
+    unit: "対局別" / "日別" / "月別" / "年別"
+    """
     if rounds.empty:
         return pd.DataFrame()
 
-    g = rounds.groupby("game_id").agg(
+    r = rounds.copy()
+    r["_date"] = pd.to_datetime(r["game_id"].str[:8], format="%Y%m%d")
+
+    if unit == "対局別":
+        group_col = "game_id"
+    elif unit == "日別":
+        r["_period"] = r["_date"].dt.strftime("%Y-%m-%d")
+        group_col = "_period"
+    elif unit == "月別":
+        r["_period"] = r["_date"].dt.strftime("%Y-%m")
+        group_col = "_period"
+    else:  # 年別
+        r["_period"] = r["_date"].dt.strftime("%Y")
+        group_col = "_period"
+
+    g = r.groupby(group_col).agg(
         num_rounds=("round_index", "size"),
         agari_rate=("is_agari", "mean"),
         houjuu_rate=("is_houjuu", "mean"),
@@ -117,13 +139,11 @@ def build_per_game_stats(rounds: pd.DataFrame, games: pd.DataFrame) -> pd.DataFr
         hi_tsumo_rate=("is_hi_tsumo", "mean"),
         avg_score_change=("score_change", "mean"),
     )
-    # アガリ打点・放銃打点
-    agari = rounds[rounds["is_agari"]].groupby("game_id")["agari_ten"].mean()
-    houjuu = rounds[rounds["is_houjuu"]].groupby("game_id")["houjuu_ten"].mean()
+    agari = r[r["is_agari"]].groupby(group_col)["agari_ten"].mean()
+    houjuu = r[r["is_houjuu"]].groupby(group_col)["houjuu_ten"].mean()
     g["avg_agari_ten"] = agari
     g["avg_houjuu_ten"] = houjuu
 
-    # 率を%に変換
     for col in [
         "agari_rate",
         "houjuu_rate",
@@ -133,10 +153,25 @@ def build_per_game_stats(rounds: pd.DataFrame, games: pd.DataFrame) -> pd.DataFr
     ]:
         g[col] = g[col] * 100
 
-    # 順位情報をjoin
+    # 順位情報（対局別のみ直接join、期間別はgamesから集約）
     if not games.empty and "final_rank" in games.columns:
-        rank_info = games.set_index("game_id")[["final_rank", "final_point"]]
-        g = g.join(rank_info, how="left")
+        gm = games.copy()
+        if unit == "対局別":
+            rank_info = gm.set_index("game_id")[["final_rank", "final_point"]]
+            g = g.join(rank_info, how="left")
+        else:
+            gm["_date"] = pd.to_datetime(gm["game_date_jst"])
+            if unit == "日別":
+                gm["_period"] = gm["_date"].dt.strftime("%Y-%m-%d")
+            elif unit == "月別":
+                gm["_period"] = gm["_date"].dt.strftime("%Y-%m")
+            else:
+                gm["_period"] = gm["_date"].dt.strftime("%Y")
+            rank_agg = gm.groupby("_period").agg(
+                final_rank=("final_rank", "mean"),
+                final_point=("final_point", "sum"),
+            )
+            g = g.join(rank_agg, how="left")
 
     return g.reset_index()
 

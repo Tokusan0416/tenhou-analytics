@@ -38,7 +38,7 @@ from config import (
     round_label,
 )
 from data import (
-    build_per_game_stats,
+    build_correlation_stats,
     build_trend_table,
     calc_game_stats,
     calc_stats,
@@ -805,43 +805,54 @@ def main():
     # --- 相関分析タブ ---
     with tab_correlation:
         st.subheader("指標間の相関分析")
-        per_game = build_per_game_stats(rounds, filtered_games)
 
-        if per_game.empty or len(per_game) < 5:
-            st.info("相関分析には5対局以上のデータが必要です。")
+        corr_unit = st.radio(
+            "集計単位",
+            ["対局別", "日別", "月別", "年別"],
+            horizontal=True,
+            key="corr_unit",
+        )
+        corr_data = build_correlation_stats(rounds, filtered_games, corr_unit)
+
+        if corr_data.empty or len(corr_data) < 5:
+            st.info(
+                f"相関分析には5データ点以上が必要です（現在: {len(corr_data)}点）。"
+            )
         else:
-            # ローリング平均を構築（対局順でソート）
-            if "game_id" in per_game.columns:
-                per_game_sorted = per_game.sort_values("game_id")
-            else:
-                per_game_sorted = per_game
+            # ソート（対局別はgame_id、期間別は_period）
+            sort_col = "game_id" if "game_id" in corr_data.columns else "_period"
+            corr_sorted = corr_data.sort_values(sort_col)
 
+            # ローリング平均
             window = st.slider(
                 "ローリング平均の窓幅",
                 min_value=3,
-                max_value=min(20, len(per_game_sorted)),
-                value=min(10, len(per_game_sorted)),
+                max_value=min(20, len(corr_sorted)),
+                value=min(10, len(corr_sorted)),
                 key="rolling_window",
             )
-            numeric_cols = [
-                c for c in CORRELATION_METRICS if c in per_game_sorted.columns
-            ]
+            numeric_cols = [c for c in CORRELATION_METRICS if c in corr_sorted.columns]
             rolling_df = (
-                per_game_sorted[numeric_cols].rolling(window, min_periods=window).mean()
+                corr_sorted[numeric_cols].rolling(window, min_periods=window).mean()
             )
 
             # 相関ヒートマップ
-            st.caption("対局ごとの各指標間の相関係数（ピアソン）")
-            fig = render_correlation_heatmap(per_game)
+            unit_label = {"対局別": "対局", "日別": "日", "月別": "月", "年別": "年"}[
+                corr_unit
+            ]
+            st.caption(
+                f"{unit_label}ごとの各指標間の相関係数（ピアソン） — {len(corr_data)}データ点"
+            )
+            fig = render_correlation_heatmap(corr_data)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
 
             st.divider()
 
-            # 散布図（指標選択）
+            # 散布図
             st.subheader("散布図")
             metric_options = {
-                v: k for k, v in CORRELATION_METRICS.items() if k in per_game.columns
+                v: k for k, v in CORRELATION_METRICS.items() if k in corr_data.columns
             }
             col_x, col_y = st.columns(2)
             with col_x:
@@ -863,20 +874,20 @@ def main():
             x_col = metric_options[x_label]
             y_col = metric_options[y_label]
 
-            fig = render_scatter_with_trend(per_game_sorted, x_col, y_col, rolling_df)
+            fig = render_scatter_with_trend(corr_sorted, x_col, y_col, rolling_df)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
 
             st.divider()
 
-            # ローリング平均の推移チャート
+            # ローリング推移
             st.subheader("ローリング平均の推移")
             trend_metric_label = st.selectbox(
                 "指標",
                 [
                     v
                     for k, v in CORRELATION_METRICS.items()
-                    if k in per_game.columns and k != "final_rank"
+                    if k in corr_data.columns and k != "final_rank"
                 ],
                 key="rolling_trend_metric",
             )
@@ -886,28 +897,26 @@ def main():
 
             if trend_metric_col in rolling_df.columns:
                 fig = go.Figure()
-                # 生データ（薄く）
                 fig.add_trace(
                     go.Scatter(
-                        x=list(range(1, len(per_game_sorted) + 1)),
-                        y=per_game_sorted[trend_metric_col],
+                        x=list(range(1, len(corr_sorted) + 1)),
+                        y=corr_sorted[trend_metric_col],
                         mode="markers",
                         marker={"size": 6, "color": COLORS["neutral"], "opacity": 0.4},
-                        name="対局ごと",
+                        name=f"{unit_label}ごと",
                     )
                 )
-                # ローリング
                 fig.add_trace(
                     go.Scatter(
                         x=list(range(1, len(rolling_df) + 1)),
                         y=rolling_df[trend_metric_col],
                         mode="lines",
                         line={"color": COLORS["primary"], "width": 2.5},
-                        name=f"{window}局ローリング平均",
+                        name=f"{window}{unit_label}ローリング平均",
                     )
                 )
                 fig.update_layout(
-                    xaxis_title="対局数",
+                    xaxis_title=f"{unit_label}数",
                     yaxis_title=trend_metric_label,
                     height=350,
                     margin={"t": 30, "b": 50},
