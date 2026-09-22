@@ -874,7 +874,7 @@ def main():
             x_col = metric_options[x_label]
             y_col = metric_options[y_label]
 
-            fig = render_scatter_with_trend(corr_sorted, x_col, y_col, rolling_df)
+            fig = render_scatter_with_trend(corr_sorted, x_col, y_col)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
 
