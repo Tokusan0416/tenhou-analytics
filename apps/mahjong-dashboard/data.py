@@ -99,6 +99,49 @@ def load_yaku_detail():
 
 
 # ==============================
+# 対局ごとスタッツ（相関分析用）
+# ==============================
+
+
+def build_per_game_stats(rounds: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
+    """fct_round_player_statsを対局単位に集約し、相関分析用のDataFrameを返す。"""
+    if rounds.empty:
+        return pd.DataFrame()
+
+    g = rounds.groupby("game_id").agg(
+        num_rounds=("round_index", "size"),
+        agari_rate=("is_agari", "mean"),
+        houjuu_rate=("is_houjuu", "mean"),
+        reach_rate=("is_reach", "mean"),
+        naki_rate=("is_naki", "mean"),
+        hi_tsumo_rate=("is_hi_tsumo", "mean"),
+        avg_score_change=("score_change", "mean"),
+    )
+    # アガリ打点・放銃打点
+    agari = rounds[rounds["is_agari"]].groupby("game_id")["agari_ten"].mean()
+    houjuu = rounds[rounds["is_houjuu"]].groupby("game_id")["houjuu_ten"].mean()
+    g["avg_agari_ten"] = agari
+    g["avg_houjuu_ten"] = houjuu
+
+    # 率を%に変換
+    for col in [
+        "agari_rate",
+        "houjuu_rate",
+        "reach_rate",
+        "naki_rate",
+        "hi_tsumo_rate",
+    ]:
+        g[col] = g[col] * 100
+
+    # 順位情報をjoin
+    if not games.empty and "final_rank" in games.columns:
+        rank_info = games.set_index("game_id")[["final_rank", "final_point"]]
+        g = g.join(rank_info, how="left")
+
+    return g.reset_index()
+
+
+# ==============================
 # スタッツ計算
 # ==============================
 
