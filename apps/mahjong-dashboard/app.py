@@ -1116,6 +1116,75 @@ def main():
         if fig:
             st.plotly_chart(fig, use_container_width=True)
 
+        # 運指数・効率の推移チャート
+        trend_corr = build_correlation_stats(
+            rounds, filtered_games, period, tenpai_data=tenpai_data
+        )
+        if not trend_corr.empty and "luck_index" in trend_corr.columns:
+            st.divider()
+            st.subheader(f"運指数・効率の推移（{period}）")
+            sort_col = "_period" if "_period" in trend_corr.columns else "game_id"
+            tc = trend_corr.sort_values(sort_col)
+            x_labels = tc[sort_col].tolist()
+
+            fig = go.Figure()
+            # 運指数（左Y軸、0-100）
+            fig.add_trace(
+                go.Scatter(
+                    x=x_labels,
+                    y=tc["luck_index"],
+                    mode="lines+markers",
+                    line={"color": COLORS["secondary"], "width": 2.5},
+                    marker={"size": 6},
+                    name="運指数",
+                )
+            )
+            fig.add_hline(
+                y=50,
+                line_dash="dash",
+                line_color=COLORS["neutral"],
+                opacity=0.4,
+                annotation_text="平均(50)",
+                annotation_position="top left",
+            )
+            # 効率指標（右Y軸）
+            eff_traces = [
+                ("attack_efficiency", "攻撃効率", COLORS["positive"], "solid"),
+                ("defense_efficiency", "守備効率", COLORS["negative"], "solid"),
+                ("total_efficiency", "総合効率", COLORS["primary"], "dot"),
+            ]
+            for col_name, label, color, dash in eff_traces:
+                if col_name in tc.columns:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x_labels,
+                            y=tc[col_name],
+                            mode="lines+markers",
+                            line={"color": color, "width": 2, "dash": dash},
+                            marker={"size": 4},
+                            name=label,
+                            yaxis="y2",
+                        )
+                    )
+            fig.update_layout(
+                yaxis={"title": "運指数", "range": [0, 100]},
+                yaxis2={
+                    "title": "効率",
+                    "overlaying": "y",
+                    "side": "right",
+                },
+                height=400,
+                margin={"t": 30, "b": 50},
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                },
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
         st.divider()
 
         # 2行目: 指標推移（アガリ率/放銃率/リーチ率/副露率）
