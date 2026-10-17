@@ -235,6 +235,16 @@ def main():
             st.metric("副露アガリ打点", f"{int(stats['avg_naki_agari_ten']):,}")
             st.metric("アガリ巡目", f"{stats['avg_agari_turn']:.1f}")
             st.metric("平均ドラ", f"{stats['avg_dora_count']:.2f}")
+            tsumo_n = stats["tsumo_count"]
+            ron_n = stats["ron_count"]
+            agari_total = tsumo_n + ron_n
+            if agari_total > 0:
+                st.metric(
+                    "ツモ/ロン比率",
+                    f"{tsumo_n}:{ron_n}",
+                    delta=f"ツモ率 {tsumo_n / agari_total * 100:.1f}%",
+                    delta_color="off",
+                )
         with c2:
             st.subheader("守備")
             st.metric("放銃打点", f"{int(stats['avg_houjuu_ten']):,}")
@@ -245,11 +255,6 @@ def main():
             st.metric("先制リーチ率", f"{stats['first_reach_rate']:.2f}%")
             st.metric("流局平得", f"{stats['avg_ryuukyoku_score_change']:+.1f}")
             st.metric("局収支", f"{stats['avg_score_change']:+.1f}")
-            adj = (
-                stats["agari_rate"] / 100 * stats["avg_agari_ten"]
-                - stats["houjuu_rate"] / 100 * stats["avg_houjuu_ten"]
-            )
-            st.metric("調整打点効率", f"{adj:+,.0f}")
 
         st.divider()
 
@@ -505,6 +510,80 @@ def main():
         context_table = render_agari_context_table(rounds)
         if context_table is not None:
             st.dataframe(context_table, use_container_width=True, hide_index=True)
+
+        st.divider()
+
+        # 流局詳細
+        st.subheader("流局詳細")
+        ryuukyoku = rounds[rounds["result_type"] == "ryuukyoku"]
+        if ryuukyoku.empty:
+            st.info("流局データがありません。")
+        else:
+            ryuu_n = len(ryuukyoku)
+            total_n = len(rounds)
+
+            # 流局率と全体サマリ
+            col_r1, col_r2, col_r3 = st.columns(3)
+            col_r1.metric(
+                "流局率",
+                f"{ryuu_n / total_n * 100:.2f}%",
+                delta=f"{ryuu_n}回 / {total_n}局",
+                delta_color="off",
+            )
+            col_r2.metric("流局時収支", f"{ryuukyoku['score_change'].mean():+.1f}")
+
+            # テンパイ/不聴の内訳（is_agari=Falseかつis_houjuu=Falseの局でscore_change > 0ならテンパイと推定）
+            tenpai_ryuu = ryuukyoku[ryuukyoku["score_change"] > 0]
+            noten_ryuu = ryuukyoku[ryuukyoku["score_change"] <= 0]
+            tenpai_rate = len(tenpai_ryuu) / ryuu_n * 100 if ryuu_n else 0
+            col_r3.metric(
+                "流局時聴牌率",
+                f"{tenpai_rate:.2f}%",
+                delta=f"{len(tenpai_ryuu)}回 / {ryuu_n}回",
+                delta_color="off",
+            )
+
+            # 聴牌/不聴別の収支
+            ryuu_rows = []
+            if not tenpai_ryuu.empty:
+                ryuu_rows.append(
+                    {
+                        "状態": "聴牌",
+                        "回数": len(tenpai_ryuu),
+                        "割合": f"{len(tenpai_ryuu) / ryuu_n * 100:.2f}%",
+                        "平均収支": f"{tenpai_ryuu['score_change'].mean():+.1f}",
+                    }
+                )
+            if not noten_ryuu.empty:
+                ryuu_rows.append(
+                    {
+                        "状態": "不聴",
+                        "回数": len(noten_ryuu),
+                        "割合": f"{len(noten_ryuu) / ryuu_n * 100:.2f}%",
+                        "平均収支": f"{noten_ryuu['score_change'].mean():+.1f}",
+                    }
+                )
+
+            # 流局時の状態別（リーチ/ダマ/副露）
+            for label, subset in [
+                ("リーチ", ryuukyoku[ryuukyoku["is_reach"]]),
+                ("ダマ", ryuukyoku[~ryuukyoku["is_reach"] & ~ryuukyoku["is_naki"]]),
+                ("副露", ryuukyoku[ryuukyoku["is_naki"]]),
+            ]:
+                if subset.empty:
+                    continue
+                ryuu_rows.append(
+                    {
+                        "状態": label,
+                        "回数": len(subset),
+                        "割合": f"{len(subset) / ryuu_n * 100:.2f}%",
+                        "平均収支": f"{subset['score_change'].mean():+.1f}",
+                    }
+                )
+            if ryuu_rows:
+                st.dataframe(
+                    pd.DataFrame(ryuu_rows), use_container_width=True, hide_index=True
+                )
 
     # --- シャンテン分析タブ ---
     with tab_shanten:

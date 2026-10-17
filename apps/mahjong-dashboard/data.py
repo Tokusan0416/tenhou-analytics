@@ -226,6 +226,16 @@ def calc_stats(df: pd.DataFrame) -> dict | None:
         "avg_hi_tsumo_ten": df.loc[df["is_hi_tsumo"], "hi_tsumo_ten"].mean()
         if df["is_hi_tsumo"].any()
         else 0,
+        # ロン/ツモ比率
+        "tsumo_count": int(df["is_tsumo"].sum()) if "is_tsumo" in df.columns else 0,
+        "ron_count": int((df["is_agari"] & ~df["is_tsumo"].fillna(False)).sum())
+        if "is_tsumo" in df.columns
+        else agari_n,
+        # 効率指標
+        "attack_efficiency": (agari_n / n)
+        * (df.loc[df["is_agari"], "agari_ten"].mean() if agari_n else 0),
+        "defense_efficiency": (houjuu_n / n)
+        * (df.loc[df["is_houjuu"], "houjuu_ten"].mean() if houjuu_n else 0),
     }
 
 
