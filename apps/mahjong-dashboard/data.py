@@ -245,30 +245,32 @@ def build_correlation_stats(
         haipai = tp.groupby(tp_group)["haipai_shanten"].mean()
         g["avg_haipai_shanten"] = haipai
 
-    # z-score合算で運指数を算出
+    # パーセンタイルベースの運指数を算出（0-100、50=平均）
+    # sign=1: 高い方がラッキー、sign=-1: 低い方がラッキー
     luck_components = []
-    # 良い方向を正にする（ラッキー = 正）
     if "avg_haipai_shanten" in g.columns:
-        luck_components.append(("avg_haipai_shanten", -1))  # 低い方がラッキー
+        luck_components.append(("avg_haipai_shanten", -1))
     if "avg_hi_tsumo_ten" in g.columns:
-        luck_components.append(("avg_hi_tsumo_ten", -1))  # 低い方がラッキー
+        luck_components.append(("avg_hi_tsumo_ten", -1))
     if "avg_ura_dora" in g.columns:
-        luck_components.append(("avg_ura_dora", 1))  # 高い方がラッキー
+        luck_components.append(("avg_ura_dora", 1))
     if "avg_aka_dora" in g.columns:
-        luck_components.append(("avg_aka_dora", 1))  # 高い方がラッキー
+        luck_components.append(("avg_aka_dora", 1))
     if "ippatsu_rate" in g.columns:
-        luck_components.append(("ippatsu_rate", 1))  # 高い方がラッキー
+        luck_components.append(("ippatsu_rate", 1))
 
     if luck_components:
-        luck_z = pd.DataFrame(index=g.index)
+        luck_pct = pd.DataFrame(index=g.index)
         for col, sign in luck_components:
-            series = g[col].fillna(g[col].mean())
-            std = series.std()
-            if std > 0:
-                luck_z[col] = sign * (series - series.mean()) / std
-            else:
-                luck_z[col] = 0.0
-        g["luck_index"] = luck_z.mean(axis=1)
+            series = g[col]
+            if series.dropna().nunique() < 2:
+                continue
+            # パーセンタイル順位（0-100）
+            ranked = series.rank(pct=True, na_option="keep") * 100
+            if sign == -1:
+                ranked = 100 - ranked  # 低い方がラッキー → 反転
+            luck_pct[col] = ranked
+        g["luck_index"] = luck_pct.mean(axis=1, skipna=True)
 
     return g.reset_index()
 

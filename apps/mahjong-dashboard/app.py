@@ -182,35 +182,24 @@ def main():
     # ===== KPI =====
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)
 
-    # 運指数KPI（build_correlation_statsから算出）
+    # 運指数KPI（パーセンタイル: 50=平均、100=最高にツイてる）
     kpi_corr = build_correlation_stats(
         rounds, filtered_games, "対局別", tenpai_data=tenpai_data
     )
     if not kpi_corr.empty and "luck_index" in kpi_corr.columns:
-        luck_val = kpi_corr["luck_index"].mean()
-        # 前期比較
-        prev_luck = None
-        if not prev_rounds.empty:
-            prev_corr = build_correlation_stats(
-                prev_rounds, prev_games, "対局別", tenpai_data=tenpai_data
+        sorted_luck = kpi_corr.sort_values("game_id")["luck_index"].dropna()
+        recent_n = min(10, len(sorted_luck))
+        if recent_n > 0:
+            recent_luck = sorted_luck.tail(recent_n).mean()
+            overall_luck = sorted_luck.mean()
+            delta_from_avg = recent_luck - overall_luck
+            st.metric(
+                f"運指数（直近{recent_n}対局）",
+                f"{recent_luck:.1f}",
+                delta=f"平均比 {delta_from_avg:+.1f}",
+                delta_color="normal" if delta_from_avg >= 0 else "inverse",
             )
-            if not prev_corr.empty and "luck_index" in prev_corr.columns:
-                prev_luck = prev_corr["luck_index"].mean()
-        luck_delta = luck_val - prev_luck if prev_luck is not None else None
-        luck_display = f"{luck_val:+.3f}"
-        if luck_delta is not None:
-            if luck_delta == 0:
-                st.metric("運指数", luck_display, delta="±0", delta_color="off")
-            else:
-                st.metric(
-                    "運指数",
-                    luck_display,
-                    delta=f"{luck_delta:+.3f}",
-                    delta_color="normal",
-                )
-        else:
-            st.metric("運指数", luck_display)
-        st.caption("配牌シャンテン・被ツモ打点・裏ドラ・赤ドラ・一発のz-score合成")
+            st.caption("50=平均 / 100=最高にツイてる / 0=最も不運")
 
     # ===== タブ =====
     (
@@ -1060,31 +1049,31 @@ def main():
                 st.divider()
                 st.subheader("実績・効率・運の推移比較")
                 st.caption(
-                    "各指標をz-score化してローリング平均で比較。乖離が大きいほど運/実力の偏りが大きい"
+                    "各指標を0-100のパーセンタイルに統一。50=平均、乖離が大きいほど運/実力の偏りが大きい"
                 )
 
-                # 3指標をz-scoreに統一
+                # 各指標をパーセンタイル化して統一スケールに
                 compare_cols = {}
                 if "final_rank" in corr_sorted.columns:
-                    # 順位は低い方が良いので符号反転
-                    compare_cols["実績（順位）"] = -1 * rolling_df.get(
-                        "final_rank", pd.Series(dtype=float)
+                    # 順位は低い方が良い → rank(ascending=True)でpct
+                    raw = corr_sorted["final_rank"]
+                    compare_cols["実績（順位）"] = (
+                        (raw.rank(ascending=True, pct=True) * 100)
+                        .rolling(window, min_periods=window)
+                        .mean()
                     )
-                if "total_efficiency" in rolling_df.columns:
-                    compare_cols["効率（総合）"] = rolling_df["total_efficiency"]
+                if "total_efficiency" in corr_sorted.columns:
+                    raw = corr_sorted["total_efficiency"]
+                    compare_cols["効率（総合）"] = (
+                        (raw.rank(pct=True) * 100)
+                        .rolling(window, min_periods=window)
+                        .mean()
+                    )
                 if "luck_index" in rolling_df.columns:
                     compare_cols["運指数"] = rolling_df["luck_index"]
 
                 if compare_cols:
-                    # z-score化
                     compare_df = pd.DataFrame(compare_cols)
-                    for col in compare_df.columns:
-                        std = compare_df[col].std()
-                        if std > 0:
-                            compare_df[col] = (
-                                compare_df[col] - compare_df[col].mean()
-                            ) / std
-
                     x_vals = list(range(1, len(compare_df) + 1))
                     line_colors = {
                         "実績（順位）": COLORS["primary"],
@@ -1108,11 +1097,17 @@ def main():
                             )
                         )
                     fig.add_hline(
-                        y=0, line_dash="dash", line_color=COLORS["neutral"], opacity=0.3
+                        y=50,
+                        line_dash="dash",
+                        line_color=COLORS["neutral"],
+                        opacity=0.3,
+                        annotation_text="平均(50)",
+                        annotation_position="top left",
                     )
                     fig.update_layout(
                         xaxis_title=f"{unit_label}数",
-                        yaxis_title="z-score",
+                        yaxis_title="パーセンタイル",
+                        yaxis={"range": [0, 100]},
                         height=400,
                         margin={"t": 30, "b": 50},
                         legend={
@@ -1141,6 +1136,75 @@ def main():
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
 
+        # 運指数・効率の推移チャート
+        trend_corr = build_correlation_stats(
+            rounds, filtered_games, period, tenpai_data=tenpai_data
+        )
+        if not trend_corr.empty and "luck_index" in trend_corr.columns:
+            st.divider()
+            st.subheader(f"運指数・効率の推移（{period}）")
+            sort_col = "_period" if "_period" in trend_corr.columns else "game_id"
+            tc = trend_corr.sort_values(sort_col)
+            x_labels = tc[sort_col].tolist()
+
+            fig = go.Figure()
+            # 運指数（左Y軸、0-100）
+            fig.add_trace(
+                go.Scatter(
+                    x=x_labels,
+                    y=tc["luck_index"],
+                    mode="lines+markers",
+                    line={"color": COLORS["secondary"], "width": 2.5},
+                    marker={"size": 6},
+                    name="運指数",
+                )
+            )
+            fig.add_hline(
+                y=50,
+                line_dash="dash",
+                line_color=COLORS["neutral"],
+                opacity=0.4,
+                annotation_text="平均(50)",
+                annotation_position="top left",
+            )
+            # 効率指標（右Y軸）
+            eff_traces = [
+                ("attack_efficiency", "攻撃効率", COLORS["positive"], "solid"),
+                ("defense_efficiency", "守備効率", COLORS["negative"], "solid"),
+                ("total_efficiency", "総合効率", COLORS["primary"], "dot"),
+            ]
+            for col_name, label, color, dash in eff_traces:
+                if col_name in tc.columns:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x_labels,
+                            y=tc[col_name],
+                            mode="lines+markers",
+                            line={"color": color, "width": 2, "dash": dash},
+                            marker={"size": 4},
+                            name=label,
+                            yaxis="y2",
+                        )
+                    )
+            fig.update_layout(
+                yaxis={"title": "運指数", "range": [0, 100]},
+                yaxis2={
+                    "title": "効率",
+                    "overlaying": "y",
+                    "side": "right",
+                },
+                height=400,
+                margin={"t": 30, "b": 50},
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                },
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
         st.divider()
         st.subheader(f"スタッツ一覧（{period}）")
         trend_table = build_trend_table(rounds, filtered_games, period)
@@ -1156,7 +1220,7 @@ def main():
                 luck_map = corr_period.set_index(period_col)["luck_index"]
                 trend_table["運指数"] = trend_table[""].map(
                     lambda p: (
-                        f"{luck_map.get(p, float('nan')):.2f}"
+                        f"{luck_map.get(p, float('nan')):.1f}"
                         if p in luck_map.index
                         else "-"
                     )
@@ -1385,12 +1449,15 @@ def main():
                     "luck_index": "運指数",
                 }
             )
-            fmt_cols = ["攻撃効率", "守備効率", "総合効率", "運指数"]
-            for col in fmt_cols:
+            for col in ["攻撃効率", "守備効率", "総合効率"]:
                 if col in eff_cols.columns:
                     eff_cols[col] = eff_cols[col].apply(
                         lambda v: f"{v:.2f}" if pd.notna(v) else "-"
                     )
+            if "運指数" in eff_cols.columns:
+                eff_cols["運指数"] = eff_cols["運指数"].apply(
+                    lambda v: f"{v:.1f}" if pd.notna(v) else "-"
+                )
             ddf = ddf.merge(eff_cols, on="game_id", how="left")
 
         ddf = ddf.rename(
