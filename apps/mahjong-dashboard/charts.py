@@ -184,6 +184,25 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
         f"{stats['naki_count']}回 / {stats['total_rounds']}局",
     )
 
+    st.caption("**効率指標**")
+    c = st.columns(3)
+    atk = stats["attack_efficiency"]
+    dfn = stats["defense_efficiency"]
+    total = atk - dfn
+    p_atk = prev_stats["attack_efficiency"] if prev_stats else None
+    p_dfn = prev_stats["defense_efficiency"] if prev_stats else None
+    _m(c[0], "攻撃効率", atk, ",.0f", p_atk, False, "アガリ率×アガリ打点")
+    _m(c[1], "守備効率", dfn, ",.0f", p_dfn, True, "放銃率×放銃打点")
+    _m(
+        c[2],
+        "総合効率",
+        total,
+        "+,.0f",
+        (p_atk - p_dfn) if p_atk is not None and p_dfn is not None else None,
+        False,
+        "攻撃効率−守備効率",
+    )
+
 
 def render_radar_chart(stats, all_rounds):
     categories = ["アガリ率", "打点(千点)", "リーチ率", "副露率", "守備力", "局収支"]
