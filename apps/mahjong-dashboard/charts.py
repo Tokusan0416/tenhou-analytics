@@ -39,7 +39,7 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
     """主要KPIを2段構成で表示。"""
 
     def _m(col, label, val, fmt, prev_val, inverse, caption=None):
-        suffix = "%" if "率" in label else ""
+        suffix = "%" if "率" in label and "効率" not in label else ""
         display = f"{val:{fmt}}{suffix}"
         if prev_val is not None:
             delta = val - prev_val
