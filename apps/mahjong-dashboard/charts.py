@@ -1148,6 +1148,12 @@ CORRELATION_METRICS = {
     "attack_efficiency": "攻撃効率",
     "defense_efficiency": "守備効率",
     "total_efficiency": "総合効率",
+    "luck_index": "運指数",
+    "avg_haipai_shanten": "配牌シャンテン",
+    "avg_hi_tsumo_ten": "被ツモ打点",
+    "avg_ura_dora": "裏ドラ",
+    "avg_aka_dora": "赤ドラ",
+    "ippatsu_rate": "一発率",
 }
 
 
