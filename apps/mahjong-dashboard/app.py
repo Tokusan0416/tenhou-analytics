@@ -182,25 +182,6 @@ def main():
     # ===== KPI =====
     render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats)
 
-    # 運指数KPI（パーセンタイル: 50=平均、100=最高にツイてる）
-    kpi_corr = build_correlation_stats(
-        rounds, filtered_games, "対局別", tenpai_data=tenpai_data
-    )
-    if not kpi_corr.empty and "luck_index" in kpi_corr.columns:
-        sorted_luck = kpi_corr.sort_values("game_id")["luck_index"].dropna()
-        recent_n = min(10, len(sorted_luck))
-        if recent_n > 0:
-            recent_luck = sorted_luck.tail(recent_n).mean()
-            overall_luck = sorted_luck.mean()
-            delta_from_avg = recent_luck - overall_luck
-            st.metric(
-                f"運指数（直近{recent_n}対局）",
-                f"{recent_luck:.1f}",
-                delta=f"平均比 {delta_from_avg:+.1f}",
-                delta_color="normal" if delta_from_avg >= 0 else "inverse",
-            )
-            st.caption("50=平均 / 100=最高にツイてる / 0=最も不運")
-
     # ===== タブ =====
     (
         tab_overview,
@@ -1124,17 +1105,16 @@ def main():
     with tab_trend:
         period = st.radio("集計単位", ["日別", "月別", "年別"], horizontal=True)
 
-        col_rt, col_tt = st.columns(2)
-        with col_rt:
-            st.subheader(f"平均順位推移（{period}）")
-            fig = render_rank_trend(filtered_games, period)
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
-        with col_tt:
-            st.subheader(f"指標推移（{period}）")
-            fig = render_trend_chart(rounds, filtered_games, period)
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
+        # 共通データ: 運指数・効率を含む期間集計
+        trend_corr = build_correlation_stats(
+            rounds, filtered_games, period, tenpai_data=tenpai_data
+        )
+
+        # 1行目: 平均順位推移
+        st.subheader(f"平均順位推移（{period}）")
+        fig = render_rank_trend(filtered_games, period)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
 
         # 運指数・効率の推移チャート
         trend_corr = build_correlation_stats(
@@ -1206,25 +1186,101 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
+
+        # 2行目: 指標推移（アガリ率/放銃率/リーチ率/副露率）
+        st.subheader(f"指標推移（{period}）")
+        fig = render_trend_chart(rounds, filtered_games, period)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # 3行目: 運指数・効率の推移
+        if not trend_corr.empty and "luck_index" in trend_corr.columns:
+            st.subheader(f"運指数・効率の推移（{period}）")
+            sort_col = "_period" if "_period" in trend_corr.columns else "game_id"
+            tc = trend_corr.sort_values(sort_col)
+            x_labels = tc[sort_col].tolist()
+
+            fig = go.Figure()
+            # 運指数（左Y軸、0-100）
+            fig.add_trace(
+                go.Scatter(
+                    x=x_labels,
+                    y=tc["luck_index"],
+                    mode="lines+markers",
+                    line={"color": COLORS["secondary"], "width": 2.5},
+                    marker={"size": 6},
+                    name="運指数",
+                )
+            )
+            fig.add_hline(
+                y=50,
+                line_dash="dash",
+                line_color=COLORS["neutral"],
+                opacity=0.4,
+                annotation_text="平均(50)",
+                annotation_position="top left",
+            )
+            # 効率指標（右Y軸）
+            eff_traces = [
+                ("attack_efficiency", "攻撃効率", COLORS["positive"], "solid"),
+                ("defense_efficiency", "守備効率", COLORS["negative"], "solid"),
+                ("total_efficiency", "総合効率", COLORS["primary"], "dot"),
+            ]
+            for col_name, label, color, dash in eff_traces:
+                if col_name in tc.columns:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x_labels,
+                            y=tc[col_name],
+                            mode="lines+markers",
+                            line={"color": color, "width": 2, "dash": dash},
+                            marker={"size": 4},
+                            name=label,
+                            yaxis="y2",
+                        )
+                    )
+            fig.update_layout(
+                yaxis={"title": "運指数", "range": [0, 100]},
+                yaxis2={
+                    "title": "効率",
+                    "overlaying": "y",
+                    "side": "right",
+                },
+                height=400,
+                margin={"t": 30, "b": 50},
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                },
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # スタッツ一覧
         st.subheader(f"スタッツ一覧（{period}）")
         trend_table = build_trend_table(rounds, filtered_games, period)
         if trend_table is not None:
-            # 運指数をjoin
-            corr_period = build_correlation_stats(
-                rounds, filtered_games, period, tenpai_data=tenpai_data
-            )
-            if not corr_period.empty and "luck_index" in corr_period.columns:
-                period_col = (
-                    "_period" if "_period" in corr_period.columns else "game_id"
-                )
-                luck_map = corr_period.set_index(period_col)["luck_index"]
-                trend_table["運指数"] = trend_table[""].map(
-                    lambda p: (
-                        f"{luck_map.get(p, float('nan')):.1f}"
-                        if p in luck_map.index
-                        else "-"
+            # 運指数をjoin（フォーマットを合わせる）
+            if not trend_corr.empty and "luck_index" in trend_corr.columns:
+                sort_col = "_period" if "_period" in trend_corr.columns else "game_id"
+                tc_sorted = trend_corr.sort_values(sort_col)
+                # trend_tableの""カラムと同じ順序でマッチ
+                fmt = {"日別": "%m/%d", "月別": "%Y-%m", "年別": "%Y"}[period]
+                if "_period" in tc_sorted.columns:
+                    # build_correlation_statsの_periodを表示フォーマットに変換
+                    tc_sorted["_label"] = pd.to_datetime(
+                        tc_sorted["_period"]
+                    ).dt.strftime(fmt)
+                    luck_map = dict(zip(tc_sorted["_label"], tc_sorted["luck_index"]))
+                    trend_table["運指数"] = trend_table[""].map(
+                        lambda p: f"{luck_map[p]:.1f}" if p in luck_map else "-"
                     )
-                )
             st.dataframe(trend_table, use_container_width=True, hide_index=True)
 
     # --- 東場/南場タブ ---
