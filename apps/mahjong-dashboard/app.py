@@ -1217,6 +1217,7 @@ def main():
             20: "天鳳",
         }
         display_cols = [
+            "game_id",
             "game_date_jst",
             "seat",
             "dan",
@@ -1240,6 +1241,31 @@ def main():
             ddf["seat"] = ddf["seat"].map(SEAT_LABELS)
         if "dan" in ddf.columns:
             ddf["dan"] = ddf["dan"].map(DAN_LABELS)
+
+        # 対局ごとの効率指標をjoin
+        per_game = build_correlation_stats(rounds, filtered_games, "対局別")
+        if not per_game.empty and "game_id" in per_game.columns:
+            eff_cols = per_game[
+                [
+                    "game_id",
+                    "attack_efficiency",
+                    "defense_efficiency",
+                    "total_efficiency",
+                ]
+            ].copy()
+            eff_cols = eff_cols.rename(
+                columns={
+                    "attack_efficiency": "攻撃効率",
+                    "defense_efficiency": "守備効率",
+                    "total_efficiency": "総合効率",
+                }
+            )
+            for col in ["攻撃効率", "守備効率", "総合効率"]:
+                eff_cols[col] = eff_cols[col].apply(
+                    lambda v: f"{v:.2f}" if pd.notna(v) else "-"
+                )
+            ddf = ddf.merge(eff_cols, on="game_id", how="left")
+
         ddf = ddf.rename(
             columns={
                 "game_date_jst": "日付",
@@ -1260,6 +1286,9 @@ def main():
                 "cumulative_point": "累積pt",
             }
         )
+        # game_idは表示不要
+        if "game_id" in ddf.columns:
+            ddf = ddf.drop(columns=["game_id"])
         st.dataframe(ddf, use_container_width=True, hide_index=True)
 
 

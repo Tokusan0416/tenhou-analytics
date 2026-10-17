@@ -136,6 +136,7 @@ def build_correlation_stats(
         agari_rate=("is_agari", "mean"),
         houjuu_rate=("is_houjuu", "mean"),
         reach_rate=("is_reach", "mean"),
+        first_reach_rate=("is_first_reach", "mean"),
         naki_rate=("is_naki", "mean"),
         hi_tsumo_rate=("is_hi_tsumo", "mean"),
         avg_score_change=("score_change", "mean"),
@@ -145,14 +146,38 @@ def build_correlation_stats(
     g["avg_agari_ten"] = agari
     g["avg_houjuu_ten"] = houjuu
 
-    for col in [
+    # リーチ時アガリ率
+    reach_r = r[r["is_reach"]]
+    if not reach_r.empty:
+        reach_agari = reach_r.groupby(group_col).agg(
+            _reach_n=("is_agari", "size"),
+            _reach_agari_n=("is_agari", "sum"),
+        )
+        reach_agari["reach_agari_rate"] = (
+            reach_agari["_reach_agari_n"] / reach_agari["_reach_n"] * 100
+        )
+        g["reach_agari_rate"] = reach_agari["reach_agari_rate"]
+
+    # 流局率
+    g["ryuukyoku_rate"] = r.groupby(group_col)["result_type"].apply(
+        lambda x: (x == "ryuukyoku").mean() * 100
+    )
+
+    rate_cols = [
         "agari_rate",
         "houjuu_rate",
         "reach_rate",
+        "first_reach_rate",
         "naki_rate",
         "hi_tsumo_rate",
-    ]:
+    ]
+    for col in rate_cols:
         g[col] = g[col] * 100
+
+    # 効率指標
+    g["attack_efficiency"] = g["agari_rate"] / 100 * g["avg_agari_ten"].fillna(0)
+    g["defense_efficiency"] = g["houjuu_rate"] / 100 * g["avg_houjuu_ten"].fillna(0)
+    g["total_efficiency"] = g["attack_efficiency"] - g["defense_efficiency"]
 
     # 順位情報（対局別のみ直接join、期間別はgamesから集約）
     if not games.empty and "final_rank" in games.columns:
@@ -160,6 +185,10 @@ def build_correlation_stats(
         if unit == "対局別":
             rank_info = gm.set_index("game_id")[["final_rank", "final_point"]]
             g = g.join(rank_info, how="left")
+            # 対局別ではトップ率/ラス率は0or100なので意味がないが、
+            # 整合性のためカラムを追加
+            g["top_rate"] = (g["final_rank"] == 1).astype(float) * 100
+            g["last_rate"] = (g["final_rank"] == 4).astype(float) * 100
         else:
             gm["_date"] = pd.to_datetime(gm["game_date_jst"])
             if unit == "日別":
@@ -171,6 +200,8 @@ def build_correlation_stats(
             rank_agg = gm.groupby("_period").agg(
                 final_rank=("final_rank", "mean"),
                 final_point=("final_point", "sum"),
+                top_rate=("final_rank", lambda x: (x == 1).mean() * 100),
+                last_rate=("final_rank", lambda x: (x == 4).mean() * 100),
             )
             g = g.join(rank_agg, how="left")
 
@@ -285,6 +316,9 @@ def stats_to_row(label: str, s: dict, gs: dict | None = None) -> dict:
     row["副露回数"] = s["naki_count"]
     row["被ツモ率"] = f"{s['hi_tsumo_rate']:.2f}%"
     row["局収支"] = f"{s['avg_score_change']:+.1f}"
+    row["攻撃効率"] = f"{s['attack_efficiency']:.2f}"
+    row["守備効率"] = f"{s['defense_efficiency']:.2f}"
+    row["総合効率"] = f"{s['attack_efficiency'] - s['defense_efficiency']:+.2f}"
     return row
 
 

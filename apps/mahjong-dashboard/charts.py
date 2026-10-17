@@ -191,13 +191,13 @@ def render_kpi_metrics(stats, game_stats, prev_stats, prev_game_stats):
     total = atk - dfn
     p_atk = prev_stats["attack_efficiency"] if prev_stats else None
     p_dfn = prev_stats["defense_efficiency"] if prev_stats else None
-    _m(c[0], "攻撃効率", atk, ",.0f", p_atk, False, "アガリ率×アガリ打点")
-    _m(c[1], "守備効率", dfn, ",.0f", p_dfn, True, "放銃率×放銃打点")
+    _m(c[0], "攻撃効率", atk, ".2f", p_atk, False, "アガリ率×アガリ打点")
+    _m(c[1], "守備効率", dfn, ".2f", p_dfn, True, "放銃率×放銃打点")
     _m(
         c[2],
         "総合効率",
         total,
-        "+,.0f",
+        "+.2f",
         (p_atk - p_dfn) if p_atk is not None and p_dfn is not None else None,
         False,
         "攻撃効率−守備効率",
@@ -1132,14 +1132,22 @@ def grouped_bar_chart(df, group_col, metrics, label_fn=None, colors=None):
 CORRELATION_METRICS = {
     "final_rank": "平均順位",
     "final_point": "ポイント",
+    "top_rate": "トップ率",
+    "last_rate": "ラス率",
     "agari_rate": "アガリ率",
     "avg_agari_ten": "アガリ打点",
     "houjuu_rate": "放銃率",
     "avg_houjuu_ten": "放銃打点",
     "reach_rate": "リーチ率",
+    "first_reach_rate": "先制リーチ率",
+    "reach_agari_rate": "リーチ時アガリ率",
     "naki_rate": "副露率",
     "hi_tsumo_rate": "被ツモ率",
+    "ryuukyoku_rate": "流局率",
     "avg_score_change": "局収支",
+    "attack_efficiency": "攻撃効率",
+    "defense_efficiency": "守備効率",
+    "total_efficiency": "総合効率",
 }
 
 

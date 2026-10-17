@@ -50,7 +50,8 @@ tests/                         # テスト
   - `dim_rounds`: 局ディメンション（局ラベル・東場南場・オーラス）
   - `fct_games`: 対局×プレイヤーファクト（順位・ポイント・game_date・game_order）
   - `fct_rounds`: 局ファクト
-  - `fct_round_player_stats`: プレイヤー×局ファクト（アガリ/放銃/被ツモ/横移動/副露/リーチ/順位状況/本場/供託）
+  - `fct_round_player_stats`: プレイヤー×局ファクト（アガリ/放銃/被ツモ/横移動/副露/リーチ/順位状況/本場/供託/ダブロン対応）
+  - `fct_tenpai_stats`: テンパイ情報ファクト（配牌シャンテン・テンパイ巡目・待ち枚数・局結果）
 - `tenhou_marts`: レポート・可視化用の集計テーブル
   - `mart_player_stats`: プレイヤー別スタッツ集計
   - `mart_game_results`: 対局結果一覧（累積ポイント付き）
@@ -110,11 +111,16 @@ tests/                         # テスト
 - [x] dbtプロジェクト（staging/intermediate/warehouse）
 - [x] martsモデル（mart_player_stats, mart_game_results, mart_yaku_stats）
 - [x] Streamlitアプリ（ローカル）— apps/mahjong-dashboard/
-- [x] dbt schema.yml / テスト整備（persist_docs有効、42テスト、codegen導入）
+- [x] dbt schema.yml / テスト整備（persist_docs有効、57テスト、codegen導入）
 - [x] Docker化
 - [x] Cloud Runデプロイ（手動）
 - [x] CI/CD（GitHub Actions: ruff + pytest + dbt compile + Cloud Runデプロイ）
 - [x] dbt実行の自動化
 - [x] テンパイ判定/シャンテン数（mahjongライブラリ、手牌追跡エンジン実装済み）
+- [x] ダブロン対応（2人目の役・翻数・符・和了牌等を全レイヤーに保持）
+- [x] Streamlitリファクタ（DWH側にビジネスロジック集約、アプリは薄い集計層）
+- [x] 相関分析タブ追加（ヒートマップ・散布図・ローリング推移、対局別/日別/月別/年別切替）
+- [x] 効率指標（攻撃効率/守備効率/総合効率）KPI・全タブ表・対局履歴に追加
+- [x] 流局詳細・ロン/ツモ比率の可視化
 - [ ] 待ち形判定（面子分解ベースの正確な実装が必要、副露後の短い手牌への対応が課題）
 - [ ] SHUFFLE（牌山生成）の実装
