@@ -508,12 +508,21 @@ def main():
 
     # --- シャンテン分析タブ ---
     with tab_shanten:
-        if tenpai_data.empty:
+        # フィルタ済みgame_idでテンパイデータ・手牌データを絞り込み
+        filtered_game_ids = rounds["game_id"].unique()
+        tenpai_filtered = tenpai_data[tenpai_data["game_id"].isin(filtered_game_ids)]
+        hand_states_filtered = (
+            hand_states[hand_states["game_id"].isin(filtered_game_ids)]
+            if not hand_states.empty
+            else hand_states
+        )
+
+        if tenpai_filtered.empty:
             st.info("テンパイデータがありません。")
         else:
             # 配牌シャンテン分布
             st.subheader("配牌シャンテン数分布")
-            sh_counts = tenpai_data["haipai_shanten"].value_counts().sort_index()
+            sh_counts = tenpai_filtered["haipai_shanten"].value_counts().sort_index()
             fig = go.Figure(
                 data=[
                     go.Bar(
@@ -548,7 +557,7 @@ def main():
                 }
 
             sh_rows = calc_tenpai_group_stats(
-                tenpai_data,
+                tenpai_filtered,
                 "haipai_shanten",
                 "配牌シャンテン",
                 "シャンテン",
@@ -563,10 +572,12 @@ def main():
             st.divider()
 
             # 巡目別テンパイ率 + 平均シャンテン推移
-            if not hand_states.empty:
+            if not hand_states_filtered.empty:
                 st.subheader("巡目別シャンテン推移・テンパイ率")
                 # 巡目ごとの集計
-                hs = hand_states[hand_states["action_type"] == "discard"].copy()
+                hs = hand_states_filtered[
+                    hand_states_filtered["action_type"] == "discard"
+                ].copy()
                 if not hs.empty:
                     max_turn = min(int(hs["turn"].max()), 18)
                     turn_data = []
@@ -673,7 +684,7 @@ def main():
 
             # テンパイ巡目別アガリ率・放銃率
             st.subheader("テンパイ巡目別 アガリ率・放銃率")
-            tenpai_reached = tenpai_data[tenpai_data["reached_tenpai"]].copy()
+            tenpai_reached = tenpai_filtered[tenpai_filtered["reached_tenpai"]].copy()
             if not tenpai_reached.empty and "tenpai_turn" in tenpai_reached.columns:
                 tenpai_reached["tenpai_bin"] = pd.cut(
                     tenpai_reached["tenpai_turn"],

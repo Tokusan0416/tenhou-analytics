@@ -60,7 +60,8 @@ def load_tenpai_stats():
     """テンパイ情報（配牌シャンテン・待ち形等）。"""
     return query_df("""
         SELECT
-            haipai_shanten, reached_tenpai, tenpai_turn
+            game_id, round_index
+            ,haipai_shanten, reached_tenpai, tenpai_turn
             ,tenpai_wait_count, tenpai_wait_count_visible
             ,is_agari, agari_ten, is_houjuu, houjuu_ten
             ,is_reach, is_naki, score_change
