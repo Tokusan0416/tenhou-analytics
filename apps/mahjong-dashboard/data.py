@@ -108,21 +108,16 @@ def build_correlation_stats(
     rounds: pd.DataFrame,
     games: pd.DataFrame,
     unit: str = "対局別",
-    tenpai_data: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """相関分析用にスタッツを集約する。
 
     unit: "対局別" / "日別" / "月別" / "年別"
-    tenpai_data: 配牌シャンテンを運指数に使用（任意）
     """
     if rounds.empty:
         return pd.DataFrame()
 
     r = rounds.copy()
     r["_date"] = pd.to_datetime(r["game_id"].str[:8], format="%Y%m%d")
-
-    # 一発フラグ（agari_yakuに"一発"が含まれるか）
-    r["has_ippatsu"] = r["agari_yaku"].fillna("").str.contains("一発").astype(int)
 
     if unit == "対局別":
         group_col = "game_id"
@@ -209,68 +204,6 @@ def build_correlation_stats(
                 last_rate=("final_rank", lambda x: (x == 4).mean() * 100),
             )
             g = g.join(rank_agg, how="left")
-
-    # === 運指数 ===
-    # 各要素をグループ単位で集約
-    # 被ツモ打点（低い方がラッキー → 符号反転）
-    hi_tsumo = r[r["is_hi_tsumo"]].groupby(group_col)["hi_tsumo_ten"].mean()
-    g["avg_hi_tsumo_ten"] = hi_tsumo
-
-    # 裏ドラ・赤ドラ（アガリ時のみ、高い方がラッキー）
-    agari_r = r[r["is_agari"]]
-    if not agari_r.empty:
-        luck_agari = agari_r.groupby(group_col).agg(
-            avg_ura_dora=("ura_dora_count", "mean"),
-            avg_aka_dora=("aka_dora_count", "mean"),
-            ippatsu_rate=("has_ippatsu", "mean"),
-        )
-        g["avg_ura_dora"] = luck_agari["avg_ura_dora"]
-        g["avg_aka_dora"] = luck_agari["avg_aka_dora"]
-        g["ippatsu_rate"] = luck_agari["ippatsu_rate"] * 100
-
-    # 配牌シャンテン（低い方がラッキー → 符号反転）
-    if tenpai_data is not None and not tenpai_data.empty:
-        tp = tenpai_data.copy()
-        if unit == "対局別":
-            tp_group = "game_id"
-        else:
-            tp["_date"] = pd.to_datetime(tp["game_id"].str[:8], format="%Y%m%d")
-            if unit == "日別":
-                tp["_period"] = tp["_date"].dt.strftime("%Y-%m-%d")
-            elif unit == "月別":
-                tp["_period"] = tp["_date"].dt.strftime("%Y-%m")
-            else:
-                tp["_period"] = tp["_date"].dt.strftime("%Y")
-            tp_group = "_period"
-        haipai = tp.groupby(tp_group)["haipai_shanten"].mean()
-        g["avg_haipai_shanten"] = haipai
-
-    # パーセンタイルベースの運指数を算出（0-100、50=平均）
-    # sign=1: 高い方がラッキー、sign=-1: 低い方がラッキー
-    luck_components = []
-    if "avg_haipai_shanten" in g.columns:
-        luck_components.append(("avg_haipai_shanten", -1))
-    if "avg_hi_tsumo_ten" in g.columns:
-        luck_components.append(("avg_hi_tsumo_ten", -1))
-    if "avg_ura_dora" in g.columns:
-        luck_components.append(("avg_ura_dora", 1))
-    if "avg_aka_dora" in g.columns:
-        luck_components.append(("avg_aka_dora", 1))
-    if "ippatsu_rate" in g.columns:
-        luck_components.append(("ippatsu_rate", 1))
-
-    if luck_components:
-        luck_pct = pd.DataFrame(index=g.index)
-        for col, sign in luck_components:
-            series = g[col]
-            if series.dropna().nunique() < 2:
-                continue
-            # パーセンタイル順位（0-100）
-            ranked = series.rank(pct=True, na_option="keep") * 100
-            if sign == -1:
-                ranked = 100 - ranked  # 低い方がラッキー → 反転
-            luck_pct[col] = ranked
-        g["luck_index"] = luck_pct.mean(axis=1, skipna=True)
 
     return g.reset_index()
 
