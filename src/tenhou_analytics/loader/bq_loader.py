@@ -21,8 +21,37 @@ DEFAULT_PROJECT = os.environ.get("GCP_PROJECT_ID", "invertible-vine-477701-j8")
 DEFAULT_DATASET = "tenhou_raw"
 
 
+RAW_TABLES = ["raw_games", "raw_rounds", "raw_actions", "raw_hand_states"]
+
+
 def _get_table_id(project: str, dataset: str, table: str) -> str:
     return f"{project}.{dataset}.{table}"
+
+
+def get_existing_game_ids(
+    project: str = DEFAULT_PROJECT,
+    dataset: str = DEFAULT_DATASET,
+) -> set[str]:
+    """BigQueryに既に存在するgame_idの一覧を取得する。"""
+    client = bigquery.Client(project=project)
+    table_id = _get_table_id(project, dataset, "raw_games")
+    try:
+        query = f"SELECT DISTINCT game_id FROM `{table_id}`"
+        result = client.query(query).result()
+        return {row.game_id for row in result}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+def delete_all_raw_tables(
+    project: str = DEFAULT_PROJECT,
+    dataset: str = DEFAULT_DATASET,
+) -> None:
+    """rawテーブルを全て削除する（フルリフレッシュ用）。"""
+    client = bigquery.Client(project=project)
+    for table_name in RAW_TABLES:
+        table_id = _get_table_id(project, dataset, table_name)
+        client.delete_table(table_id, not_found_ok=True)
 
 
 def _game_to_raw_games_row(game: Game) -> dict:
@@ -426,25 +455,6 @@ def load_game_to_bigquery(
         }
         for hs in hand_states
     ]
-
-    # 重複チェック: 同一game_idが既に存在する場合はスキップ
-    try:
-        query = f"""
-            SELECT COUNT(*) as cnt
-            FROM `{games_table_id}`
-            WHERE game_id = @game_id
-        """
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("game_id", "STRING", game.game_id),
-            ]
-        )
-        result = client.query(query, job_config=job_config).result()
-        count = next(iter(result)).cnt
-    except (Exception, StopIteration):  # noqa: BLE001
-        count = 0
-    if count > 0:
-        return {"raw_games": 0, "raw_rounds": 0, "raw_actions": 0, "raw_hand_states": 0}
 
     # ロード（テーブル作成直後はStreaming Insertが失敗する場合があるためリトライ）
     def _insert_with_retry(table_id, rows, max_retries=3):

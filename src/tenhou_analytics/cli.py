@@ -13,7 +13,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
+from tenhou_analytics.loader.bq_loader import (
+    DEFAULT_PROJECT,
+    delete_all_raw_tables,
+    load_game_to_bigquery,
+)
 from tenhou_analytics.loader.gcs_loader import (
     load_from_gcs,
     upload_to_gcs,
@@ -95,6 +99,11 @@ def main_load() -> None:
         action="store_true",
         help="パースのみ実行しBigQueryにはロードしない",
     )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="rawテーブルを全削除してから全件ロード（フルリフレッシュ）",
+    )
 
     args = parser.parse_args()
 
@@ -141,6 +150,11 @@ def _load_from_local(args: argparse.Namespace) -> None:
 
 def _load_from_gcs(args: argparse.Namespace) -> None:
     """GCSからBigQueryにロード。"""
+    if args.refresh:
+        print("Full refresh: deleting all raw tables...")
+        delete_all_raw_tables(project=args.project, dataset=args.dataset)
+        print("Done. Reloading all files.")
+
     print(f"Loading from GCS bucket: {args.bucket}")
 
     results = load_from_gcs(
@@ -156,10 +170,13 @@ def _load_from_gcs(args: argparse.Namespace) -> None:
 
     for r in results:
         status = r["status"]
-        print(
-            f"  {r['file']}: {r['player']}, "
-            f"{r['rounds']} rounds, {r['point']:+.1f}pt -> {status}"
-        )
+        if status == "skipped":
+            print(f"  {r['file']}: skipped")
+        else:
+            print(
+                f"  {r['file']}: {r['player']}, "
+                f"{r['rounds']} rounds, {r['point']:+.1f}pt -> {status}"
+            )
 
     loaded = sum(1 for r in results if r["status"] == "loaded")
     skipped = sum(1 for r in results if r["status"] == "skipped")
