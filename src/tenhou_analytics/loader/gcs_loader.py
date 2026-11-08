@@ -7,7 +7,11 @@ from pathlib import Path
 
 from google.cloud import storage
 
-from tenhou_analytics.loader.bq_loader import DEFAULT_PROJECT, load_game_to_bigquery
+from tenhou_analytics.loader.bq_loader import (
+    DEFAULT_PROJECT,
+    get_existing_game_ids,
+    load_game_to_bigquery,
+)
 from tenhou_analytics.parser.mjlog import _extract_game_date, parse_mjlog
 
 DEFAULT_BUCKET = "tenhou-log-raw"
@@ -55,6 +59,8 @@ def load_from_gcs(
 ) -> list[dict]:
     """GCS上の未処理mjlogファイルをパースしてBigQueryにロードする。
 
+    既存のgame_idを1回のクエリで取得し、差分のみロードする。
+
     Returns:
         各ファイルの処理結果リスト
     """
@@ -62,8 +68,32 @@ def load_from_gcs(
     bucket = client.bucket(bucket_name)
     gcs_files = list_gcs_files(bucket_name=bucket_name)
 
+    # 既存game_idを一括取得（1クエリ）
+    existing_ids = (
+        get_existing_game_ids(project=project, dataset=dataset)
+        if not dry_run
+        else set()
+    )
+
     results = []
     for blob_name in sorted(gcs_files):
+        game_id = _extract_game_id_from_blob(blob_name)
+
+        # メモリ上で重複判定（BQクエリ不要）
+        if not dry_run and game_id in existing_ids:
+            # スキップ時はパースも不要
+            results.append(
+                {
+                    "file": blob_name,
+                    "game_id": game_id,
+                    "player": "-",
+                    "rounds": 0,
+                    "point": 0,
+                    "status": "skipped",
+                }
+            )
+            continue
+
         blob = bucket.blob(blob_name)
 
         # GCSからtempfileにダウンロードしてパース
@@ -73,8 +103,7 @@ def load_from_gcs(
                 tmp_path = Path(tmp.name)
             blob.download_to_filename(str(tmp_path))
             game = parse_mjlog(str(tmp_path))
-            # ファイル名からmy_seatを復元（tmpだとパスが変わるため）
-            game.game_id = _extract_game_id_from_blob(blob_name)
+            game.game_id = game_id
             game.game_date = _extract_game_date(game.game_id)
             game.my_seat = _extract_my_seat_from_blob(blob_name)
         except Exception:
@@ -97,11 +126,8 @@ def load_from_gcs(
             entry["status"] = "dry_run"
         else:
             result = load_game_to_bigquery(game, project=project, dataset=dataset)
-            if result["raw_games"] > 0:
-                entry["status"] = "loaded"
-                entry["detail"] = result
-            else:
-                entry["status"] = "skipped"
+            entry["status"] = "loaded"
+            entry["detail"] = result
 
         results.append(entry)
 
